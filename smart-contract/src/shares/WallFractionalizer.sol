@@ -6,6 +6,7 @@ import { IERC721Receiver } from "@openzeppelin/contracts/token/ERC721/IERC721Rec
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { AgentShare } from "./AgentShare.sol";
+import { IWallAgentNFT } from "../interfaces/IWallAgentNFT.sol";
 
 /// @title WallFractionalizer
 /// @notice UUPS-upgradeable vault that locks an agent iNFT and mints 1M ERC-20
@@ -22,16 +23,25 @@ contract WallFractionalizer is OwnableUpgradeable, UUPSUpgradeable, IERC721Recei
 
     mapping(uint256 => Vault) public vaults;
 
-    /// @dev SC-M5: storage gap for future upgrades.
-    uint256[50] private __gap;
+    /// @notice INT-1: address allowed to push usage grants through this
+    ///         contract. Post-launch the fractionalizer OWNS the iNFT, so the
+    ///         off-chain operator can't call WallAgentNFT.authorizeUsage
+    ///         directly (NotOwnerOrApproved). It calls authorizeUsageFor here
+    ///         instead and the fractionalizer (the owner) relays it.
+    address public usageOperator;
+
+    /// @dev SC-M5: storage gap for future upgrades (reduced by 1 for usageOperator).
+    uint256[49] private __gap;
 
     event Fractionalized(uint256 indexed tokenId, address shareToken, address indexed creator);
     event Redeemed(uint256 indexed tokenId, address indexed by);
+    event UsageOperatorSet(address indexed operator);
 
     error AlreadyFractionalized();
     error NotFractionalized();
     error NotOwner();
     error NotFullHolder();
+    error NotUsageOperator();
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -53,6 +63,20 @@ contract WallFractionalizer is OwnableUpgradeable, UUPSUpgradeable, IERC721Recei
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner { }
+
+    /// @notice Authorize the off-chain operator that may relay usage grants (INT-1).
+    function setUsageOperator(address operator) external onlyOwner {
+        usageOperator = operator;
+        emit UsageOperatorSet(operator);
+    }
+
+    /// @notice Relay an iNFT usage grant. The fractionalizer holds the iNFT
+    ///         post-launch, so it (and only it) passes WallAgentNFT's
+    ///         owner/approved check. Restricted to the configured operator.
+    function authorizeUsageFor(uint256 tokenId, address user, uint64 expiresAt) external {
+        if (msg.sender != usageOperator) revert NotUsageOperator();
+        IWallAgentNFT(address(agentNft)).authorizeUsage(tokenId, user, expiresAt);
+    }
 
     /// @notice Lock `tokenId`, deploy a fresh AgentShare, mint 1M shares to `recipient`.
     function fractionalize(
@@ -86,7 +110,8 @@ contract WallFractionalizer is OwnableUpgradeable, UUPSUpgradeable, IERC721Recei
         uint256 supply = s.totalSupply();
         if (s.balanceOf(msg.sender) != supply) revert NotFullHolder();
 
-        s.burnFrom(msg.sender, supply);
+        // Allowance-free burn via the fractionalizer-only hook (SC-C2).
+        s.redeemBurn(msg.sender, supply);
 
         vaults[tokenId].active = false;
         agentNft.safeTransferFrom(address(this), msg.sender, tokenId);

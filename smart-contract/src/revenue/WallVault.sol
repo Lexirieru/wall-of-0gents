@@ -31,9 +31,21 @@ contract WallVault {
 
     mapping(uint256 => mapping(address => bool)) public claimedAt;
 
+    /// @notice ECON-2: total distributable already snapped but not yet paid out.
+    ///         `snap()` only captures NEW inflow (balance - reserved), so funds
+    ///         from a prior snapshot are never re-counted into a later one.
+    uint256 public reserved;
+
+    /// @notice ECON-1: a share holder excluded from the pro-rata denominator
+    ///         (the IPO contract, which holds unsold shares it can never claim).
+    ///         Set once by the deployer (factory).
+    address public excluded;
+    address private immutable _deployer;
+
     event Received(uint256 amount, address indexed from);
     event Snapped(uint256 indexed snapshotId, uint256 timepoint, uint256 balance);
     event Distributed(uint256 indexed snapshotId, address indexed holder, uint256 amount);
+    event ExcludedSet(address indexed holder);
 
     /// @notice SC-H2: minimum seconds between consecutive snaps (0 = no limit).
     uint256 public immutable snapMinInterval;
@@ -43,12 +55,35 @@ contract WallVault {
     error AlreadyClaimed();
     error InvalidSnapshot();
     error SnapTooSoon(); // SC-H2
+    error NotDeployer();
+    error ExcludedAlreadySet();
 
     constructor(address _paymentAsset, address _shareToken, uint256 _agentTokenId, uint256 _snapMinInterval) {
         paymentAsset = IERC20(_paymentAsset);
         shareToken = AgentShare(_shareToken);
         agentTokenId = _agentTokenId;
         snapMinInterval = _snapMinInterval;
+        _deployer = msg.sender;
+    }
+
+    /// @notice One-time: exclude a non-claiming holder (the IPO) from the
+    ///         distribution denominator so its unsold shares don't strand
+    ///         revenue (ECON-1). Callable once by the deployer/factory.
+    function setExcluded(address holder) external {
+        if (msg.sender != _deployer) revert NotDeployer();
+        if (excluded != address(0)) revert ExcludedAlreadySet();
+        excluded = holder;
+        emit ExcludedSet(holder);
+    }
+
+    function _effectiveTotal(uint256 timepoint) internal view returns (uint256) {
+        uint256 total = shareToken.getPastTotalSupply(timepoint);
+        address ex = excluded;
+        if (ex != address(0)) {
+            uint256 exVotes = shareToken.getPastVotes(ex, timepoint);
+            total = total > exVotes ? total - exVotes : 0;
+        }
+        return total;
     }
 
     /// @notice Explicitly fund the vault (also receives funds passively from x402 settlement).
@@ -59,18 +94,23 @@ contract WallVault {
 
     /// @notice Capture current vault balance into a new snapshot. Permissionless.
     function snap() external returns (uint256 snapshotId) {
+        // ECON-2: only NEW funds since the last snap are distributable; funds
+        // still owed to prior snapshots (`reserved`) are excluded so they can
+        // never be double-counted / paid out twice.
         uint256 bal = paymentAsset.balanceOf(address(this));
-        if (bal == 0) revert NoBalance();
+        uint256 newFunds = bal > reserved ? bal - reserved : 0;
+        if (newFunds == 0) revert NoBalance();
         // SC-H2: rate-limit snaps to prevent snapshot spam / manipulation
         if (snapMinInterval > 0 && block.timestamp < _lastSnapTime + snapMinInterval) revert SnapTooSoon();
 
         uint256 timepoint = block.number - 1;
 
         _lastSnapTime = block.timestamp;
+        reserved += newFunds;
         snapshotId = _snapshots.length;
-        _snapshots.push(Snapshot({ timepoint: timepoint, balanceAtSnapshot: bal, ts: uint64(block.timestamp) }));
+        _snapshots.push(Snapshot({ timepoint: timepoint, balanceAtSnapshot: newFunds, ts: uint64(block.timestamp) }));
 
-        emit Snapped(snapshotId, timepoint, bal);
+        emit Snapped(snapshotId, timepoint, newFunds);
     }
 
     function snapshotCount() external view returns (uint256) {
@@ -92,9 +132,10 @@ contract WallVault {
         if (snapshotId >= _snapshots.length) revert InvalidSnapshot();
         if (claimedAt[snapshotId][holder]) return 0;
 
+        if (holder == excluded) return 0;
         Snapshot memory s = _snapshots[snapshotId];
         uint256 holderShares = shareToken.getPastVotes(holder, s.timepoint);
-        uint256 totalShares = shareToken.getPastTotalSupply(s.timepoint);
+        uint256 totalShares = _effectiveTotal(s.timepoint);
         if (holderShares == 0 || totalShares == 0) return 0;
 
         return s.balanceAtSnapshot * holderShares / totalShares;
@@ -114,9 +155,12 @@ contract WallVault {
         if (snapshotId >= _snapshots.length) revert InvalidSnapshot();
         if (claimedAt[snapshotId][holder]) revert AlreadyClaimed();
 
+        // Excluded holder (IPO) never receives a distribution (ECON-1).
+        if (holder == excluded) return;
+
         Snapshot memory s = _snapshots[snapshotId];
         uint256 holderShares = shareToken.getPastVotes(holder, s.timepoint);
-        uint256 totalShares = shareToken.getPastTotalSupply(s.timepoint);
+        uint256 totalShares = _effectiveTotal(s.timepoint);
 
         // SC-H3: early return without marking claimed — zero-share holders should not
         // permanently lose their claim slot in case of a future share correction.
@@ -126,6 +170,9 @@ contract WallVault {
         if (amount == 0) return;
 
         claimedAt[snapshotId][holder] = true;
+        // ECON-2: release from the reserve as it's paid so the next snap()
+        // sees it as no-longer-owed.
+        reserved -= amount;
         paymentAsset.safeTransfer(holder, amount);
         emit Distributed(snapshotId, holder, amount);
     }

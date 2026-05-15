@@ -32,6 +32,7 @@ contract WallResolver is IExtendedResolver, Ownable {
 
     constructor(string memory _gatewayUrl, address _gatewaySigner, address _owner) Ownable(_owner) {
         if (bytes(_gatewayUrl).length == 0) revert EmptyGatewayUrl();
+        if (_gatewaySigner == address(0)) revert ZeroSigner(); // SC-M8
         gatewayUrl = _gatewayUrl;
         gatewaySigner = _gatewaySigner;
     }

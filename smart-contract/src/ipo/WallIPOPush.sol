@@ -22,13 +22,19 @@ contract WallIPOPush {
 
     uint256 public sold;
 
+    bool public swept;
+
     event Bought(address indexed buyer, uint256 amount, uint256 cost);
+    event Swept(uint256 amount);
 
     error InvalidConfig();
     error NotOpen();
     error SoldOut();
     error ZeroAmount();
     error ZeroCost(); // SC-L2
+    error NotEnded();
+    error NothingToSweep();
+    error AlreadySwept();
 
     constructor(
         address _shareToken,
@@ -60,14 +66,28 @@ contract WallIPOPush {
         if (amount == 0) revert ZeroAmount();
         if (sold + amount > maxShares) revert SoldOut();
 
-        uint256 cost = (amount * pricePerShare) / 1e18;
-        if (cost == 0) revert ZeroCost(); // SC-L2: reject dust buys that round to zero
+        // SC-L2 / ECON-6: round cost UP so split dust-buys can't underpay.
+        uint256 cost = (amount * pricePerShare + 1e18 - 1) / 1e18;
+        if (cost == 0) revert ZeroCost();
         sold += amount;
 
         paymentAsset.safeTransferFrom(msg.sender, beneficiary, cost);
         shareToken.safeTransfer(msg.sender, amount);
 
         emit Bought(msg.sender, amount, cost);
+    }
+
+    /// @notice ECON-1: after the sale ends, return unsold shares to the
+    ///         creator so they become claimable supply instead of being
+    ///         permanently stranded in this contract. Permissionless.
+    function sweepUnsold() external {
+        if (block.timestamp < endsAt) revert NotEnded();
+        if (swept) revert AlreadySwept();
+        uint256 left = shareToken.balanceOf(address(this));
+        if (left == 0) revert NothingToSweep();
+        swept = true;
+        shareToken.safeTransfer(beneficiary, left);
+        emit Swept(left);
     }
 
     function available() external view returns (uint256) {

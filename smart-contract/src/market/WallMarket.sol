@@ -31,6 +31,9 @@ contract WallMarket is OwnableUpgradeable, UUPSUpgradeable {
         bytes bidderPubkey;
     }
 
+    /// @notice SC-M3: minimum out-bid increment in basis points (2.5%).
+    uint256 public constant MIN_INCREMENT_BPS = 250;
+
     mapping(uint256 => Bid) private _bestBid;
 
     /// @notice SC-M3: stashed refunds for bidders whose push transfer failed.
@@ -88,7 +91,12 @@ contract WallMarket is OwnableUpgradeable, UUPSUpgradeable {
         if (bidderPubkey.length == 0) revert EmptyPubkey(); // SC-M4
 
         Bid memory prev = _bestBid[tokenId];
-        if (prev.bidder != address(0) && price <= prev.price) revert PriceTooLow();
+        // SC-M3: require a minimum increment so an attacker can't grief the
+        // auction by repeatedly out-bidding by 1 wei.
+        if (prev.bidder != address(0)) {
+            uint256 minNext = prev.price + (prev.price * MIN_INCREMENT_BPS) / 10_000;
+            if (price < minNext) revert PriceTooLow();
+        }
 
         paymentAsset.safeTransferFrom(msg.sender, address(this), price);
 

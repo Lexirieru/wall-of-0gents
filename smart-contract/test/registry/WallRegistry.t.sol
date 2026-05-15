@@ -59,10 +59,48 @@ contract WallRegistryTest is Test {
 
     function test_register_revertsIfAlreadyRegistered() public {
         vm.startPrank(operator);
-        registry.register(TOKEN_ID, makeAddr("share"), address(0), bytes32(0));
+        registry.register(TOKEN_ID, makeAddr("share"), makeAddr("vault"), bytes32(0));
         vm.expectRevert(WallRegistry.AlreadyRegistered.selector);
-        registry.register(TOKEN_ID, makeAddr("share2"), address(0), bytes32(0));
+        registry.register(TOKEN_ID, makeAddr("share2"), makeAddr("vault"), bytes32(0));
         vm.stopPrank();
+    }
+
+    // ── registerFor (trusted factory path, SC-C1) ────────────────────────────
+
+    function test_registerFor_onlyFactory() public {
+        vm.prank(alice);
+        vm.expectRevert(WallRegistry.NotFactory.selector);
+        registry.registerFor(TOKEN_ID, makeAddr("share"), makeAddr("vault"), bytes32(0), operator);
+    }
+
+    function test_registerFor_recordsCreatorAsOperator() public {
+        address factory = makeAddr("factory");
+        vm.prank(owner);
+        registry.setFactory(factory);
+
+        // Factory registers on the creator's behalf even though it doesn't own the NFT.
+        vm.prank(factory);
+        registry.registerFor(TOKEN_ID, makeAddr("share"), makeAddr("vault"), bytes32(0), operator);
+
+        WallRegistry.AgentInfo memory info = registry.info(TOKEN_ID);
+        assertEq(info.operator, operator);
+        assertEq(info.vaultBase, makeAddr("vault"));
+        assertTrue(registry.isRegistered(TOKEN_ID));
+    }
+
+    function test_registerFor_rejectsZeroVault() public {
+        address factory = makeAddr("factory");
+        vm.prank(owner);
+        registry.setFactory(factory);
+        vm.prank(factory);
+        vm.expectRevert(WallRegistry.InvalidConfig.selector);
+        registry.registerFor(TOKEN_ID, makeAddr("share"), address(0), bytes32(0), operator);
+    }
+
+    function test_setFactory_onlyOwner() public {
+        vm.prank(alice);
+        vm.expectRevert();
+        registry.setFactory(makeAddr("factory"));
     }
 
     function test_register_revertsIfShareTokenZero() public {
@@ -75,7 +113,7 @@ contract WallRegistryTest is Test {
 
     function test_operatorImmutableAfterTransfer() public {
         vm.prank(operator);
-        registry.register(TOKEN_ID, makeAddr("share"), address(0), bytes32(0));
+        registry.register(TOKEN_ID, makeAddr("share"), makeAddr("vault"), bytes32(0));
 
         nft.mint(alice, bytes32(0), "", "", "att");
         WallRegistry.AgentInfo memory info = registry.info(TOKEN_ID);

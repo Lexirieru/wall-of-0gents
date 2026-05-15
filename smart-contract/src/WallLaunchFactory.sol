@@ -8,6 +8,7 @@ import { IERC721Receiver } from "@openzeppelin/contracts/token/ERC721/IERC721Rec
 import { WallFractionalizer } from "./shares/WallFractionalizer.sol";
 import { WallIPOPush } from "./ipo/WallIPOPush.sol";
 import { WallVault } from "./revenue/WallVault.sol";
+import { WallRegistry } from "./registry/WallRegistry.sol";
 
 /// @title WallLaunchFactory
 /// @notice One-tx launcher: user sends their iNFT here via safeTransferFrom with
@@ -38,6 +39,7 @@ contract WallLaunchFactory is IERC721Receiver {
     IERC721 public immutable agentNft;
     WallFractionalizer public immutable fractionalizer;
     IERC20 public immutable paymentAsset;
+    WallRegistry public immutable registry;
 
     mapping(uint256 => Launch) public launches;
 
@@ -52,10 +54,11 @@ contract WallLaunchFactory is IERC721Receiver {
     error OnlyAgentNFT();
     error InvalidParams();
 
-    constructor(address _agentNft, address _fractionalizer, address _paymentAsset) {
+    constructor(address _agentNft, address _fractionalizer, address _paymentAsset, address _registry) {
         agentNft = IERC721(_agentNft);
         fractionalizer = WallFractionalizer(_fractionalizer);
         paymentAsset = IERC20(_paymentAsset);
+        registry = WallRegistry(_registry);
     }
 
     /// @notice Called by agentNft when the iNFT arrives. Runs the full launch sequence.
@@ -97,6 +100,16 @@ contract WallLaunchFactory is IERC721Receiver {
             p.ipoStartsAt,
             p.ipoEndsAt
         );
+
+        // ECON-1: exclude the IPO's (unsold) shares from the vault's payout
+        // denominator so they don't permanently strand revenue.
+        vault.setExcluded(address(ipo));
+
+        // Wire the agent into the registry so the off-chain x402 operator can
+        // resolve its vault. The factory is a trusted registrar; the creator
+        // (`from`) is recorded as the immutable operator. Without this, every
+        // factory-launched agent is unreachable and earns no revenue (SC-C1).
+        registry.registerFor(tokenId, shareToken, address(vault), bytes32(0), from);
 
         // Fund IPO with its allotted shares
         shares.safeTransfer(address(ipo), p.ipoShares);

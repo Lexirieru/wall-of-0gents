@@ -65,7 +65,9 @@ contract WallIPO {
         if (amount == 0) revert ZeroAmount();
         if (sold + amount > maxShares) revert SoldOut();
 
-        uint256 cost = amount * pricePerShare / 1e18;
+        // SC-L2: round cost UP so dust-sized buys can't underpay the creator.
+        uint256 cost = (amount * pricePerShare + 1e18 - 1) / 1e18;
+        if (cost == 0) revert ZeroAmount();
 
         sold += amount;
 

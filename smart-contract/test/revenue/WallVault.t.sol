@@ -180,4 +180,48 @@ contract WallVaultTest is Test {
 
         assertEq(usdc.balanceOf(alice), before + 1500e6);
     }
+
+    // ── ECON-2: reserve model prevents cross-snapshot double-count ────────────
+
+    function test_snap_onlyCapturesNewFunds_noDoubleCount() public {
+        // snap0 over 100; do NOT claim yet
+        vm.prank(keeper);
+        vault.fund(100e6);
+        vm.roll(block.number + 1);
+        vault.snap();
+        (, uint256 bal0,) = vault.snapshotAt(0);
+        assertEq(bal0, 100e6);
+        assertEq(vault.reserved(), 100e6);
+
+        // more funds arrive; snap1 must capture ONLY the new 100, not 200
+        vm.prank(keeper);
+        vault.fund(100e6);
+        vm.roll(block.number + 1);
+        vault.snap();
+        (, uint256 bal1,) = vault.snapshotAt(1);
+        assertEq(bal1, 100e6, "snap1 must not re-count unclaimed snap0 funds");
+        assertEq(vault.reserved(), 200e6);
+
+        // alice (100% holder) claims both; total payout == total deposits, solvent
+        uint256 before = usdc.balanceOf(alice);
+        vm.startPrank(alice);
+        vault.claim(0);
+        vault.claim(1);
+        vm.stopPrank();
+        assertEq(usdc.balanceOf(alice) - before, 200e6);
+        assertEq(usdc.balanceOf(address(vault)), 0);
+        assertEq(vault.reserved(), 0);
+    }
+
+    function test_setExcluded_onlyDeployerOnceAndZeroesPayout() public {
+        // deployer of `vault` is this test contract
+        vault.setExcluded(bob);
+        assertEq(vault.excluded(), bob);
+        vm.expectRevert(WallVault.ExcludedAlreadySet.selector);
+        vault.setExcluded(alice);
+
+        vm.prank(alice);
+        vm.expectRevert(WallVault.NotDeployer.selector);
+        vault.setExcluded(keeper);
+    }
 }

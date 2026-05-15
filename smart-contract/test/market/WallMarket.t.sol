@@ -193,4 +193,21 @@ contract WallMarketTest is Test {
         vm.expectRevert();
         market.upgradeToAndCall(address(newImpl), "");
     }
+
+    // ── SC-M3: minimum out-bid increment ─────────────────────────────────────
+
+    function test_postBid_revertsIfBelowMinIncrement() public {
+        vm.prank(bidder);
+        market.postBid(TOKEN_ID, 1000e6, "pubkey", EXPIRY);
+
+        // +0.1% is below the 2.5% minimum increment → reject
+        vm.prank(bidder2);
+        vm.expectRevert(WallMarket.PriceTooLow.selector);
+        market.postBid(TOKEN_ID, 1001e6, "pubkey2", EXPIRY);
+
+        // exactly +2.5% is accepted
+        vm.prank(bidder2);
+        market.postBid(TOKEN_ID, 1025e6, "pubkey2", EXPIRY);
+        assertEq(market.getBid(TOKEN_ID).price, 1025e6);
+    }
 }

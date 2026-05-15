@@ -19,6 +19,11 @@ contract AgentShare is ERC20Burnable, ERC20Permit, ERC20Votes {
     /// @dev Cross-chain pointer back to the iNFT this share token represents.
     address public immutable agentNft;
     uint256 public immutable agentTokenId;
+    /// @dev The WallFractionalizer that deployed this token; the only address
+    ///      allowed to burn for redemption (no ERC-20 allowance dance needed).
+    address public immutable fractionalizer;
+
+    error OnlyFractionalizer();
 
     constructor(
         address _agentNft,
@@ -32,7 +37,17 @@ contract AgentShare is ERC20Burnable, ERC20Permit, ERC20Votes {
     {
         agentNft = _agentNft;
         agentTokenId = _agentTokenId;
+        fractionalizer = msg.sender; // AgentShare is always deployed by the fractionalizer
         _mint(recipient, TOTAL_SUPPLY);
+    }
+
+    /// @notice Burn `amount` from `from` for iNFT redemption. Restricted to the
+    ///         fractionalizer so the full holder can redeem without first
+    ///         granting an allowance (fixes SC-C2: redeem was permanently
+    ///         bricked because `burnFrom` had no allowance path).
+    function redeemBurn(address from, uint256 amount) external {
+        if (msg.sender != fractionalizer) revert OnlyFractionalizer();
+        _burn(from, amount);
     }
 
     /// @dev Auto-delegate-to-self on first receive so checkpoints are written without

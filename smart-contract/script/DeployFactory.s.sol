@@ -4,6 +4,7 @@ pragma solidity ^0.8.24;
 import { Script } from "forge-std/Script.sol";
 import { console } from "forge-std/console.sol";
 import { WallLaunchFactory } from "../src/WallLaunchFactory.sol";
+import { WallRegistry } from "../src/registry/WallRegistry.sol";
 
 /// @dev Run:
 ///   forge script script/DeployFactory.s.sol \
@@ -15,13 +16,17 @@ contract DeployFactory is Script {
         address agentNft       = vm.envAddress("WALL_AGENT_NFT");
         address fractionalizer = vm.envAddress("WALL_FRACTIONALIZER");
         address mockUsdc       = vm.envAddress("MOCK_USDC_0G");
+        address registry       = vm.envAddress("WALL_REGISTRY");
 
         console.log("agentNft:       ", agentNft);
         console.log("fractionalizer: ", fractionalizer);
         console.log("paymentAsset:   ", mockUsdc);
+        console.log("registry:       ", registry);
 
         vm.startBroadcast();
-        WallLaunchFactory factory = new WallLaunchFactory(agentNft, fractionalizer, mockUsdc);
+        WallLaunchFactory factory = new WallLaunchFactory(agentNft, fractionalizer, mockUsdc, registry);
+        // Authorize the factory as the trusted registrar (SC-C1 wiring).
+        WallRegistry(registry).setFactory(address(factory));
         vm.stopBroadcast();
 
         console.log("WallLaunchFactory:", address(factory));
