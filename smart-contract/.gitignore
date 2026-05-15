@@ -1,14 +1,16 @@
-# Compiler files
-cache/
+# Foundry build artifacts
 out/
+cache/
 
-# Ignores development broadcast logs
-!/broadcast
-/broadcast/*/31337/
-/broadcast/**/dry-run/
-
-# Docs
-docs/
-
-# Dotenv file
+# Environment — JANGAN commit private key
 .env
+
+# Deployment broadcast logs (local only)
+broadcast/*/31337/
+broadcast/**/dry-run/
+
+# Forge coverage
+lcov.info
+
+# macOS
+.DS_Store
