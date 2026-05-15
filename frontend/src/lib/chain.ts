@@ -1,5 +1,4 @@
 import { createPublicClient, http, type Chain } from 'viem'
-import { baseSepolia } from 'viem/chains'
 
 export const zgGalileoChain = {
   id: 16602,
@@ -11,4 +10,3 @@ export const zgGalileoChain = {
 } as const satisfies Chain
 
 export const zgPublicClient = createPublicClient({ chain: zgGalileoChain, transport: http() })
-export const basePublicClient = createPublicClient({ chain: baseSepolia, transport: http('https://base-sepolia-rpc.publicnode.com') })

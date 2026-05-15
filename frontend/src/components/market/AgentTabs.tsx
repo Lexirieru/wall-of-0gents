@@ -429,7 +429,7 @@ function BidTab({ tokenId, ticker }: { tokenId: number; ticker: string }) {
       setLog('2/2 placing bid...')
       const bidTx = await writeContractAsync({
         address: CONTRACTS.market, abi: wallMarketAbi, functionName: 'postBid',
-        args: [BigInt(tokenId), price, '0x', expiresAt], chainId: ZG_ID,
+        args: [BigInt(tokenId), price, address, expiresAt], chainId: ZG_ID,
       })
       let rec2 = null
       for (let i = 0; i < 20; i++) {

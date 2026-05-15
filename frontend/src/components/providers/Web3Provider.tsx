@@ -2,7 +2,6 @@
 
 import { createConfig, WagmiProvider, http } from 'wagmi'
 import { injected } from 'wagmi/connectors'
-import { baseSepolia, mainnet } from 'wagmi/chains'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ReactNode, useState } from 'react'
 
@@ -16,11 +15,9 @@ export const zgGalileo = {
 } as const
 
 const wagmiConfig = createConfig({
-  chains: [zgGalileo, baseSepolia, mainnet],
+  chains: [zgGalileo],
   transports: {
     [zgGalileo.id]: http('https://evmrpc-testnet.0g.ai'),
-    [baseSepolia.id]: http('https://base-sepolia-rpc.publicnode.com'),
-    [mainnet.id]: http(),
   },
   connectors: [injected()],
   ssr: true,

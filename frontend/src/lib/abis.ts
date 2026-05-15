@@ -177,7 +177,7 @@ export const wallMarketAbi = [
     outputs: [],
   },
   {
-    type: 'function', name: '_bestBid', stateMutability: 'view',
+    type: 'function', name: 'getBid', stateMutability: 'view',
     inputs: [{ name: 'tokenId', type: 'uint256' }],
     outputs: [
       { name: 'bidder', type: 'address' },
@@ -185,6 +185,16 @@ export const wallMarketAbi = [
       { name: 'expiresAt', type: 'uint64' },
       { name: 'bidderPubkey', type: 'bytes' },
     ],
+  },
+  {
+    type: 'function', name: 'withdrawRefund', stateMutability: 'nonpayable',
+    inputs: [],
+    outputs: [],
+  },
+  {
+    type: 'function', name: 'pendingRefunds', stateMutability: 'view',
+    inputs: [{ name: 'account', type: 'address' }],
+    outputs: [{ name: '', type: 'uint256' }],
   },
   {
     type: 'event', name: 'BidPosted',
