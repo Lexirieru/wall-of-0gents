@@ -10,15 +10,7 @@ export const zgChain = {
   rpcUrls: { default: { http: [cfg.ZG_RPC_URL] } },
 } as const;
 
-export const baseSepoliaChain = {
-  id: 84532,
-  name: "Base Sepolia",
-  nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-  rpcUrls: { default: { http: [cfg.BASE_RPC_URL] } },
-} as const;
-
 export const zgPublic = createPublicClient({ chain: zgChain, transport: http(cfg.ZG_RPC_URL) });
-export const basePublic = createPublicClient({ chain: baseSepoliaChain, transport: http(cfg.BASE_RPC_URL) });
 
 export const operatorAccount = privateKeyToAccount(cfg.OPERATOR_PRIVATE_KEY as `0x${string}`);
 

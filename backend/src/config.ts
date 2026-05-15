@@ -1,9 +1,8 @@
 import { z } from "zod";
 
 const Cfg = z.object({
-  // RPCs
+  // RPC — single chain: 0G Galileo (16602). Base was removed project-wide.
   ZG_RPC_URL: z.string().url().default("https://evmrpc-testnet.0g.ai"),
-  BASE_RPC_URL: z.string().url().default("https://sepolia.base.org"),
 
   // Wallet
   OPERATOR_PRIVATE_KEY: z.string().startsWith("0x"),
@@ -13,8 +12,9 @@ const Cfg = z.object({
   WALL_REGISTRY: z.string().startsWith("0x"),
   WALL_MARKET: z.string().startsWith("0x"),
 
-  // Base Sepolia
-  USDC_BASE: z.string().startsWith("0x").default("0x036CbD53842c5426634e7929541eC2318f3dCF7e"),
+  // x402 settlement asset — ERC-20 on 0G Galileo (the MockUSDC deployed with
+  // the contracts). Payments are validated on 0G, not Base anymore.
+  PAYMENT_ASSET: z.string().startsWith("0x").default("0x0d837aD954F4f9F06E303A86150ad0F322Ec5EB1"),
   X402_MIN_CONFIRMATIONS: z.coerce.number().int().min(0).default(1),
 
   // LLM backend

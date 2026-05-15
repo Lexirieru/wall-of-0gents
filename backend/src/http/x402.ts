@@ -1,5 +1,5 @@
 import { parseAbiItem, decodeEventLog } from "viem";
-import { basePublic } from "../chain/clients.js";
+import { zgPublic } from "../chain/clients.js";
 import { erc20Abi } from "../chain/abis.js";
 import { cfg } from "../config.js";
 
@@ -30,15 +30,16 @@ export class X402Error extends Error {
 export function makeChallenge(vaultAddress: string, minAmountUsdc: bigint) {
   return {
     scheme: "x402",
-    network: "base-sepolia",
-    asset: cfg.USDC_BASE,
+    network: "0g-galileo",
+    chainId: 16602,
+    asset: cfg.PAYMENT_ASSET,
     recipient: vaultAddress,
     minAmount: minAmountUsdc.toString(),
     memo: "Wall of 0gents inference payment",
   };
 }
 
-// Validates a USDC Transfer on Base Sepolia.
+// Validates a PAYMENT_ASSET (ERC-20) Transfer on 0G Galileo.
 // `expectedSender` binds the payment to the subscriber so a tx that paid the
 // vault for someone else cannot be replayed under a different subscriber.
 export async function validateReceipt(
@@ -47,13 +48,13 @@ export async function validateReceipt(
   minAmount: bigint,
   expectedSender: `0x${string}`,
 ): Promise<X402Receipt> {
-  const receipt = await basePublic.getTransactionReceipt({ hash: txHash }).catch(() => null);
+  const receipt = await zgPublic.getTransactionReceipt({ hash: txHash }).catch(() => null);
   if (!receipt) throw new X402Error("INVALID_RECEIPT", "tx not found");
 
   if (receipt.status !== "success") throw new X402Error("INVALID_RECEIPT", "tx failed");
 
   const minConf = BigInt(cfg.X402_MIN_CONFIRMATIONS);
-  const head = await basePublic.getBlockNumber();
+  const head = await zgPublic.getBlockNumber();
   const confirmations = head - receipt.blockNumber;
   if (confirmations < minConf)
     throw new X402Error("UNCONFIRMED", `need ${cfg.X402_MIN_CONFIRMATIONS} confirmations, have ${confirmations}`);
@@ -64,7 +65,7 @@ export async function validateReceipt(
   let sawRecipientTransfer = false;
 
   for (const log of receipt.logs) {
-    if (log.address.toLowerCase() !== cfg.USDC_BASE.toLowerCase()) continue;
+    if (log.address.toLowerCase() !== cfg.PAYMENT_ASSET.toLowerCase()) continue;
     let decoded;
     try {
       decoded = decodeEventLog({ abi: erc20Abi, data: log.data, topics: log.topics });

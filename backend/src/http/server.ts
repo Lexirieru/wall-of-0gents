@@ -10,7 +10,6 @@ import {
   operatorAccount,
   verifyAgentOwner,
   zgPublic,
-  basePublic,
 } from "../chain/clients.js";
 import { getRuntimeFor } from "../runtime/index.js";
 import { priceFor } from "../runtime/pricing.js";
@@ -314,12 +313,10 @@ async function handleReadyz(): Promise<Response> {
   const checks: Record<string, boolean> = {};
   const results = await Promise.allSettled([
     zgPublic.getBlockNumber(),
-    basePublic.getBlockNumber(),
     Promise.resolve().then(() => getDb().query("SELECT 1").get()),
   ]);
   checks.zgRpc = results[0].status === "fulfilled";
-  checks.baseRpc = results[1].status === "fulfilled";
-  checks.db = results[2].status === "fulfilled";
+  checks.db = results[1].status === "fulfilled";
   const ok = Object.values(checks).every(Boolean);
   return json({ ok, checks }, ok ? 200 : 503);
 }
