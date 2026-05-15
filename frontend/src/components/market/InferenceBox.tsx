@@ -67,7 +67,6 @@ export function InferenceBox({ tokenId, ticker }: Props) {
           {loading ? 'Running…' : 'Run ▸'}
         </button>
         <button className="btn" onClick={() => { setOutput(''); setError('') }}>Clear</button>
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', alignSelf: 'center', marginLeft: 'auto' }}>⌘↵ to run</span>
       </div>
       {error && <div className="output-box" style={{ color: 'var(--red)', borderColor: 'var(--red)' }}>{error}</div>}
       {output && <div className="output-box">{output}</div>}

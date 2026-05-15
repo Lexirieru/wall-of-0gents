@@ -1,9 +1,7 @@
 import Link from 'next/link'
 import { loadInferences, readVault, readNftOwner, readShareTotalSupply, readFactoryLaunch, getBackendAgent } from '@/lib/agents'
-import { shortAddr, relativeTime } from '@/lib/format'
-import { InferenceBox } from '@/components/market/InferenceBox'
-import { BidPanel } from '@/components/market/BidPanel'
-import { BuySharesPanel } from '@/components/market/BuySharesPanel'
+import { shortAddr } from '@/lib/format'
+import { AgentTabs } from '@/components/market/AgentTabs'
 import type { Hex } from 'viem'
 
 export const revalidate = 30
@@ -31,7 +29,6 @@ export default async function AgentPage({ params }: { params: Promise<{ ticker: 
   const { ticker } = await params
   const upper = ticker.toUpperCase()
 
-  // Resolve agent: static dict first, then backend
   let agent = KNOWN_AGENTS[upper]
   if (!agent) {
     const backendEntry = await getBackendAgent(upper).catch(() => null)
@@ -49,7 +46,6 @@ export default async function AgentPage({ params }: { params: Promise<{ ticker: 
     }
   }
 
-  // On-chain reads (parallel)
   const [inferences, vault, nftOwner, factoryLaunch] = await Promise.all([
     loadInferences(agent.tokenId).catch(() => []),
     readVault(agent.tokenId).catch(() => null),
@@ -59,7 +55,6 @@ export default async function AgentPage({ params }: { params: Promise<{ ticker: 
 
   const callsToday = inferences.filter(i => i.timestamp > Date.now() / 1000 - 86400).length
 
-  // Share supply — factory launch takes precedence, then fall back to fractionalizer vault
   const activeShareToken = (factoryLaunch?.shareToken ?? vault?.shareToken) as Hex | undefined
   let sharesSold = '—'
   if (activeShareToken && activeShareToken !== '0x0000000000000000000000000000000000000000') {
@@ -75,40 +70,21 @@ export default async function AgentPage({ params }: { params: Promise<{ ticker: 
     <>
       {/* Breadcrumb */}
       <div style={{ padding: '12px 0', borderBottom: '1px solid var(--hair)', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--mute)', display: 'flex', gap: 8 }}>
-        <Link href="/" style={{ color: 'var(--mute)', textDecoration: 'none' }}>Markets</Link>
+        <Link href="/markets" style={{ color: 'var(--mute)', textDecoration: 'none' }}>Markets</Link>
         <span>›</span>
         <span style={{ color: 'var(--fg)' }}>{agent.ticker}</span>
         {isRegistered && <span className="pill ok" style={{ fontSize: 9, marginLeft: 'auto' }}>FRACTIONALIZED</span>}
       </div>
 
       {/* Agent Header */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 24, alignItems: 'start', padding: '24px 0', borderBottom: '1px solid var(--hair)' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-            <h1 style={{ fontFamily: 'var(--font-mono)', fontSize: 32, fontWeight: 900, color: 'var(--accent)', margin: 0 }}>{agent.ticker}</h1>
-            <span className="pill ok">ERC-7857</span>
-            <span className="pill">Token #{agent.tokenId}</span>
-          </div>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--mute)', marginBottom: 8 }}>{agent.ensName}</div>
-          <p style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg-2)', maxWidth: 520, lineHeight: 1.6, margin: 0 }}>{agent.description}</p>
+      <div style={{ padding: '24px 0', borderBottom: '1px solid var(--hair)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+          <h1 style={{ fontFamily: 'var(--font-mono)', fontSize: 32, fontWeight: 900, color: 'var(--accent)', margin: 0 }}>{agent.ticker}</h1>
+          <span className="pill ok">ERC-7857</span>
+          <span className="pill">Token #{agent.tokenId}</span>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {isRegistered ? (
-            <>
-              {hasIpo ? (
-                <BuySharesPanel ipoAddress={factoryLaunch!.ipo} ticker={agent.ticker} />
-              ) : (
-                <button className="btn primary" disabled style={{ opacity: 0.4, cursor: 'not-allowed' }} title="IPO not deployed">Buy Shares</button>
-              )}
-              <BidPanel tokenId={agent.tokenId} ticker={agent.ticker} />
-            </>
-          ) : (
-            <>
-              <button className="btn primary" disabled style={{ opacity: 0.4, cursor: 'not-allowed' }}>Buy Shares</button>
-              <button className="btn" disabled style={{ opacity: 0.4, cursor: 'not-allowed' }}>Bid NFT</button>
-            </>
-          )}
-        </div>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--mute)', marginBottom: 8 }}>{agent.ensName}</div>
+        <p style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg-2)', maxWidth: 600, lineHeight: 1.6, margin: 0 }}>{agent.description}</p>
       </div>
 
       {/* Stats strip */}
@@ -127,39 +103,17 @@ export default async function AgentPage({ params }: { params: Promise<{ ticker: 
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 16 }}>
-        <div>
-          {/* Inference box */}
-          <p className="section-h">Run Inference</p>
-          <InferenceBox tokenId={agent.tokenId} ticker={agent.ticker} />
-
-          {/* Recent inferences */}
-          {inferences.length > 0 && (
-            <>
-              <p className="section-h" style={{ marginTop: 32 }}>Recent Inferences</p>
-              <div className="panel">
-                <table className="tbl">
-                  <thead>
-                    <tr>
-                      <th>Time</th>
-                      <th>Subscriber</th>
-                      <th>Prompt preview</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {inferences.slice(0, 10).map(inf => (
-                      <tr key={inf.id}>
-                        <td className="mute">{relativeTime(inf.timestamp)}</td>
-                        <td className="mute">{shortAddr(inf.subscriber)}</td>
-                        <td style={{ maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inf.prompt}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
-        </div>
+      {/* Main content */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 24 }}>
+        {/* Tabs: Call / Buy Shares / Bid NFT */}
+        <AgentTabs
+          ticker={agent.ticker}
+          tokenId={agent.tokenId}
+          hasIpo={hasIpo}
+          isRegistered={isRegistered}
+          ipoAddress={hasIpo ? factoryLaunch!.ipo : undefined}
+          inferences={inferences}
+        />
 
         {/* Sidebar */}
         <div>

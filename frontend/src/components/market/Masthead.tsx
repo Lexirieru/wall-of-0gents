@@ -7,7 +7,7 @@ import { useState, useEffect, useRef, useLayoutEffect } from 'react'
 import { gsap } from 'gsap'
 
 const NAV = [
-  { href: '/', label: 'markets', match: (p: string) => p === '/' || p.startsWith('/agent') },
+  { href: '/markets', label: 'markets', match: (p: string) => p === '/markets' || p.startsWith('/agent') },
   { href: '/launch', label: 'deploy', match: (p: string) => p.startsWith('/launch') },
   { href: '/portfolio', label: 'portfolio', match: (p: string) => p.startsWith('/portfolio') },
 ]
@@ -69,8 +69,12 @@ export function Masthead() {
 
       const activeIndex = NAV.findIndex(n => n.match(path || '/'))
       const activeEl = navLinkRefs.current[activeIndex]
-      if (activeEl && indicatorRef.current) {
-        gsap.set(indicatorRef.current, { x: activeEl.offsetLeft, width: activeEl.offsetWidth })
+      if (indicatorRef.current) {
+        if (activeEl) {
+          gsap.set(indicatorRef.current, { x: activeEl.offsetLeft, width: activeEl.offsetWidth })
+        } else {
+          gsap.set(indicatorRef.current, { width: 0 })
+        }
       }
     })
     return () => ctx.revert()
@@ -78,10 +82,15 @@ export function Masthead() {
   }, [])
 
   useEffect(() => {
-    const activeIndex = NAV.findIndex(n => n.match(path || '/'))
-    const activeEl = navLinkRefs.current[activeIndex]
     const indicator = indicatorRef.current
-    if (!activeEl || !indicator) return
+    if (!indicator) return
+    const activeIndex = NAV.findIndex(n => n.match(path || '/'))
+    if (activeIndex === -1) {
+      gsap.to(indicator, { width: 0, duration: 0.25, ease: 'power3.in' })
+      return
+    }
+    const activeEl = navLinkRefs.current[activeIndex]
+    if (!activeEl) return
     gsap.to(indicator, { x: activeEl.offsetLeft, width: activeEl.offsetWidth, duration: 0.35, ease: 'power3.out' })
   }, [path])
 

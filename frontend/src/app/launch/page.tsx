@@ -1,6 +1,7 @@
 'use client'
 import Link from 'next/link'
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
+import gsap from 'gsap'
 import { useAccount, useChainId, useConnect, useWriteContract, useSwitchChain } from 'wagmi'
 import { injected } from 'wagmi/connectors'
 import { keccak256, toHex, decodeEventLog, encodeAbiParameters, http, createPublicClient } from 'viem'
@@ -430,8 +431,36 @@ function IdentityStep({
   const archetype = ARCHETYPES.find(a => a.id === archetypeId)!
   const canContinue = ticker.length >= 2 && ticker.length <= 6
 
-  const [promptOpen, setPromptOpen] = useState(true)
-  const [skillsOpen, setSkillsOpen] = useState(true)
+  const [promptOpen, setPromptOpen] = useState(false)
+  const [skillsOpen, setSkillsOpen] = useState(false)
+
+  const promptBodyRef = useRef<HTMLDivElement>(null)
+  const skillsBodyRef = useRef<HTMLDivElement>(null)
+
+  const animateSection = useCallback((el: HTMLElement | null, open: boolean) => {
+    if (!el) return
+    if (open) {
+      el.style.overflow = 'hidden'
+      el.style.height = 'auto'
+      const h = el.scrollHeight
+      el.style.height = '0px'
+      gsap.to(el, {
+        height: h, duration: 0.38, ease: 'power3.out',
+        onComplete: () => { el.style.height = 'auto'; el.style.overflow = '' },
+      })
+    } else {
+      el.style.overflow = 'hidden'
+      gsap.to(el, { height: 0, duration: 0.26, ease: 'power3.in' })
+    }
+  }, [])
+
+  useEffect(() => { animateSection(promptBodyRef.current, promptOpen) }, [promptOpen, animateSection])
+  useEffect(() => { animateSection(skillsBodyRef.current, skillsOpen) }, [skillsOpen, animateSection])
+
+  useEffect(() => {
+    if (promptBodyRef.current) { promptBodyRef.current.style.height = '0px'; promptBodyRef.current.style.overflow = 'hidden' }
+    if (skillsBodyRef.current) { skillsBodyRef.current.style.height = '0px'; skillsBodyRef.current.style.overflow = 'hidden' }
+  }, [])
 
   useEffect(() => {
     if (!systemPrompt) {
@@ -469,15 +498,15 @@ function IdentityStep({
   const COMPUTE_OPTIONS = [
     {
       id: '0g-ai',
-      label: '0g compute · TEE',
-      badge: 'DEEPSEEK V3',
-      desc: 'intel TDX enclave on 0G Galileo. every reply signed by the on-chain TEE signer.',
+      label: '0G COMPUTE',
+      badge: 'TEE',
+      desc: 'Runs directly on 0G Galileo inside a secure enclave. Responses are signed on-chain so anyone can verify the agent wasn\'t tampered with.',
     },
     {
       id: 'venice',
-      label: 'venice · hosted',
-      badge: 'MODEL BREADTH',
-      desc: 'qwen, claude, llama, gemma. fast and cheap. no TEE attestation.',
+      label: 'VENICE',
+      badge: 'HOSTED',
+      desc: 'Routes through Venice — pick from qwen, claude, llama, gemma and more. Faster to set up, lower cost per call. No on-chain signing.',
     },
   ]
 
@@ -616,140 +645,170 @@ function IdentityStep({
         </div>
       </div>
 
-      {/* ── COMPUTE BACKEND ── */}
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', letterSpacing: '0.08em', marginBottom: 12 }}>
-          COMPUTE BACKEND
+      {/* ── EXECUTION NODE ── */}
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 14 }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', letterSpacing: '0.08em' }}>WHERE DOES IT RUN?</span>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           {COMPUTE_OPTIONS.map(opt => {
             const isSelected = runtime === opt.id
             return (
               <div
                 key={opt.id}
                 onClick={() => setRuntime(opt.id)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={e => e.key === 'Enter' && setRuntime(opt.id)}
                 style={{
-                  background: isSelected ? '#030303' : 'var(--panel)',
+                  background: isSelected ? '#05080d' : '#070707',
                   border: isSelected ? '1px solid var(--accent)' : '1px solid var(--hair)',
-                  padding: '16px 18px',
+                  padding: '14px 16px',
                   cursor: 'pointer',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: 8,
-                  transition: 'border-color 0.15s',
+                  gap: 10,
+                  transition: 'border-color 0.18s, background 0.18s',
+                  position: 'relative',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700, color: isSelected ? 'var(--fg)' : 'var(--fg-2)' }}>
+                {isSelected && (
+                  <div style={{ position: 'absolute', top: 0, left: 0, width: 3, height: '100%', background: 'var(--accent)' }} />
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{
+                    fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.06em',
+                    color: isSelected ? 'var(--fg)' : 'var(--fg-2)',
+                  }}>
                     {opt.label}
                   </span>
-                  <span className="pill" style={{ fontSize: 9, padding: '2px 6px', marginLeft: 'auto' }}>
+                  <span style={{
+                    marginLeft: 'auto',
+                    fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.08em',
+                    padding: '2px 7px',
+                    border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--hair)'}`,
+                    color: isSelected ? 'var(--accent)' : 'var(--mute)',
+                  }}>
                     {opt.badge}
                   </span>
                 </div>
-                <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--mute)', margin: 0, lineHeight: 1.55 }}>
+                <p style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', margin: 0, lineHeight: 1.65 }}>
                   {opt.desc}
                 </p>
+                {isSelected && (
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--accent)', letterSpacing: '0.06em' }}>
+                    ● SELECTED
+                  </div>
+                )}
               </div>
             )
           })}
         </div>
       </div>
 
-      {/* ── SYSTEM PROMPT EDITOR ── */}
-      <div style={{ marginBottom: 24, border: '1px solid var(--hair)' }}>
-        {/* Header */}
+      {/* ── DIRECTIVE FILE ── */}
+      <div style={{ marginBottom: 20, border: '1px solid var(--hair)' }}>
         <div
           onClick={() => setPromptOpen(o => !o)}
           style={{
             display: 'flex', alignItems: 'center', gap: 10,
             padding: '10px 16px', cursor: 'pointer',
-            borderBottom: promptOpen ? '1px solid var(--hair)' : 'none',
-            background: 'var(--panel)',
+            background: '#070707',
+            userSelect: 'none',
           }}
         >
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--fg)', letterSpacing: '0.08em' }}>
-            {promptOpen ? '▼' : '▶'} system prompt editor
+          <span style={{
+            fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)',
+            transition: 'transform 0.25s ease',
+            display: 'inline-block',
+            transform: promptOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+          }}>▶</span>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--fg)', letterSpacing: '0.06em' }}>
+            system prompt
           </span>
-          <span className="pill" style={{ fontSize: 9, padding: '2px 6px' }}>
-            TEMPLATE DEFAULT · {systemPrompt.length} CHARS
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--mute)', letterSpacing: '0.05em', padding: '1px 6px', border: '1px solid var(--hair)' }}>
+            {systemPrompt.length > 0 ? `${systemPrompt.length} chars` : 'empty'}
           </span>
-          <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', letterSpacing: '0.08em' }}>
-            {promptOpen ? 'COLLAPSE' : 'EXPAND'}
+          <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--hair)', letterSpacing: '0.08em' }}>
+            {promptOpen ? 'collapse' : 'expand'}
           </span>
         </div>
-        {/* Body */}
-        {promptOpen && (
-          <div style={{ padding: 16 }}>
+        <div ref={promptBodyRef}>
+          <div style={{ borderTop: '1px solid var(--hair)', padding: 14 }}>
             <textarea
               value={systemPrompt}
               onChange={e => setSystemPrompt(e.target.value)}
               style={{
-                width: '100%',
-                minHeight: 200,
-                background: '#030303',
-                border: '1px solid var(--hair)',
-                outline: 'none',
-                fontFamily: 'var(--font-mono)',
-                fontSize: 12,
-                color: 'var(--fg)',
-                padding: '12px 14px',
-                resize: 'vertical',
-                boxSizing: 'border-box',
-                lineHeight: 1.6,
+                width: '100%', minHeight: 180, background: '#030303',
+                border: '1px solid var(--hair)', outline: 'none',
+                fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg)',
+                padding: '12px 14px', resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.7,
               }}
             />
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--hair)', marginTop: 6 }}>
+              this is what your agent says to itself before every call
+            </div>
           </div>
-        )}
+        </div>
       </div>
 
-      {/* ── SKILLS ── */}
-      <div style={{ marginBottom: 24, border: '1px solid var(--hair)' }}>
-        {/* Header */}
+      {/* ── MODULE REGISTRY ── */}
+      <div style={{ marginBottom: 28, border: '1px solid var(--hair)' }}>
         <div
           onClick={() => setSkillsOpen(o => !o)}
           style={{
             display: 'flex', alignItems: 'center', gap: 10,
             padding: '10px 16px', cursor: 'pointer',
-            borderBottom: skillsOpen ? '1px solid var(--hair)' : 'none',
-            background: 'var(--panel)',
+            background: '#070707',
+            userSelect: 'none',
           }}
         >
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--fg)', letterSpacing: '0.08em' }}>
-            {skillsOpen ? '▼' : '▶'} skills · bundled into manifest
+          <span style={{
+            fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)',
+            transition: 'transform 0.25s ease',
+            display: 'inline-block',
+            transform: skillsOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+          }}>▶</span>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--fg)', letterSpacing: '0.06em' }}>
+            skills
           </span>
-          <span className="pill" style={{ fontSize: 9, padding: '2px 6px' }}>
-            {skills.length} SKILLS
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--mute)', letterSpacing: '0.05em', padding: '1px 6px', border: '1px solid var(--hair)' }}>
+            {skills.length === 0 ? 'none added' : `${skills.length} added`}
           </span>
-          <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', letterSpacing: '0.08em' }}>
-            {skillsOpen ? 'COLLAPSE' : 'EXPAND'}
+          <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--hair)', letterSpacing: '0.08em' }}>
+            {skillsOpen ? 'collapse' : 'expand'}
           </span>
         </div>
-        {/* Body */}
-        {skillsOpen && (
-          <div style={{ padding: 16 }}>
-            {skills.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
-                {skills.map(skill => (
-                  <div key={skill.id} style={{ border: '1px solid var(--hair)', padding: 12, background: '#030303' }}>
-                    <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+        <div ref={skillsBodyRef}>
+          <div style={{ borderTop: '1px solid var(--hair)', padding: 14 }}>
+            {skills.length === 0 ? (
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--hair)', marginBottom: 14, lineHeight: 1.6 }}>
+                no skills yet. add things your agent knows how to do — each one gets listed in the manifest.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
+                {skills.map((skill, idx) => (
+                  <div key={skill.id} style={{ border: '1px solid var(--hair)', background: '#030303' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderBottom: '1px solid var(--hair)' }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--hair)', minWidth: 20 }}>
+                        [{String(idx).padStart(2, '0')}]
+                      </span>
                       <input
                         value={skill.name}
                         onChange={e => updateSkill(skill.id, 'name', e.target.value)}
-                        placeholder="skill-name"
+                        placeholder="skill name"
                         style={{
-                          flex: 1, background: '#080808', border: '1px solid var(--hair)',
-                          outline: 'none', fontFamily: 'var(--font-mono)', fontSize: 12,
-                          color: 'var(--fg)', padding: '8px 10px',
+                          flex: 1, background: 'transparent', border: 'none', outline: 'none',
+                          fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg)', padding: 0,
                         }}
                       />
                       <button
                         onClick={() => removeSkill(skill.id)}
                         style={{
-                          background: 'transparent', border: '1px solid #ef4444',
-                          color: '#ef4444', fontFamily: 'var(--font-mono)', fontSize: 12,
-                          padding: '8px 12px', cursor: 'pointer',
+                          background: 'transparent', border: 'none', color: '#555',
+                          fontFamily: 'var(--font-mono)', fontSize: 11, cursor: 'pointer', padding: '0 4px',
                         }}
+                        title="uninstall module"
                       >
                         ✕
                       </button>
@@ -757,12 +816,12 @@ function IdentityStep({
                     <textarea
                       value={skill.desc}
                       onChange={e => updateSkill(skill.id, 'desc', e.target.value)}
-                      placeholder="describe what this skill does..."
+                      placeholder="describe module behavior..."
                       rows={2}
                       style={{
-                        width: '100%', background: '#080808', border: '1px solid var(--hair)',
-                        outline: 'none', fontFamily: 'var(--font-mono)', fontSize: 11,
-                        color: 'var(--fg)', padding: '8px 10px', resize: 'none', boxSizing: 'border-box',
+                        width: '100%', background: 'transparent', border: 'none',
+                        outline: 'none', fontFamily: 'var(--font-mono)', fontSize: 10,
+                        color: 'var(--mute)', padding: '10px 12px', resize: 'none', boxSizing: 'border-box', lineHeight: 1.6,
                       }}
                     />
                   </div>
@@ -770,24 +829,29 @@ function IdentityStep({
               </div>
             )}
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={addSkill} className="btn" style={{ cursor: 'pointer', fontSize: 11 }}>
+              <button onClick={addSkill} className="btn" style={{ cursor: 'pointer', fontSize: 10, letterSpacing: '0.06em' }}>
                 + add skill
               </button>
-              <button
-                onClick={() => setSkills([])}
-                className="btn"
-                style={{ cursor: 'pointer', fontSize: 11, color: 'var(--mute)' }}
-              >
-                reset to template default
-              </button>
+              {skills.length > 0 && (
+                <button
+                  onClick={() => setSkills([])}
+                  style={{
+                    background: 'transparent', border: '1px solid var(--hair)', cursor: 'pointer',
+                    fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--hair)', padding: '6px 12px',
+                    letterSpacing: '0.06em',
+                  }}
+                >
+                  clear all
+                </button>
+              )}
             </div>
           </div>
-        )}
+        </div>
       </div>
 
-      {/* ── Footer note ── */}
-      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', marginBottom: 8 }}>
-        changes auto-saved to local draft · hash recomputes on every edit
+      {/* ── Footer ── */}
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--hair)', marginBottom: 8 }}>
+        everything above gets bundled and saved on-chain when you mint
       </div>
 
       <NavButtons

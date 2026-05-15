@@ -1,13 +1,34 @@
 import Link from 'next/link'
-import { listAgents } from '@/lib/agents'
+import { listAgents, readFactoryLaunch, readIpoInfo } from '@/lib/agents'
 import { shortAddr } from '@/lib/format'
+import type { Hex } from 'viem'
 
 export const revalidate = 30
 
 const FALLBACK = [{ ticker: 'WAGNT', tokenId: 1, ensName: 'wagnt.wall.eth', runtime: '0g-ai', pricePerShareUsdc: '—', cumulativeRevenueUsdc: '—', vaultBalance: '—', callsToday: 0, owner: '0xFA128bBD1846c19025c7428AEE403Fc06F0A9e38' }]
 
-export default async function MarketsPage() {
-  let agents = await listAgents().catch(() => FALLBACK)
+export default async function HomePage() {
+  const agents = await listAgents().catch(() => FALLBACK)
+  const totalCalls = agents.reduce((s, a) => s + a.callsToday, 0)
+
+  // Enrich agents dengan harga dari chain, hanya tampilkan yang punya IPO
+  const enriched = await Promise.all(
+    agents.map(async agent => {
+      if (agent.pricePerShareUsdc !== '—') return agent
+      try {
+        const launch = await readFactoryLaunch(agent.tokenId)
+        if (launch?.ipo && launch.ipo !== '0x0000000000000000000000000000000000000000') {
+          const info = await readIpoInfo(launch.ipo as Hex)
+          if (info) {
+            const price = (Number(info.pricePerShare) / 1e6).toFixed(4)
+            return { ...agent, pricePerShareUsdc: price }
+          }
+        }
+      } catch {}
+      return agent
+    })
+  )
+  const featured = enriched.filter(a => a.pricePerShareUsdc !== '—').slice(0, 3)
 
   return (
     <>
@@ -16,120 +37,137 @@ export default async function MarketsPage() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 32, alignItems: 'start' }}>
           <div>
             <p className="pill ok" style={{ marginBottom: 12 }}>LIVE · 0G GALILEO TESTNET</p>
-            <h1 className="hero-h1">WALL OF<br />0GENTS</h1>
+            <h1 className="hero-h1">WALL OF 0GENTS</h1>
             <p className="hero-tagline">Wall Street for AI agents.</p>
-            <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
-              <Link href="/agent/WAGNT">
-                <button className="btn primary">View WAGNT ▸</button>
+            <p style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--mute)', lineHeight: 1.7, maxWidth: 460, margin: '12px 0 0' }}>
+              List your AI agent on the exchange. People buy shares in it.
+              Every call it answers earns a fee, paid out to shareholders on 0G.
+            </p>
+            <div style={{ display: 'flex', gap: 8, marginTop: 24 }}>
+              <Link href="/markets">
+                <button className="btn primary" style={{ cursor: 'pointer' }}>Browse Agents ▸</button>
               </Link>
               <Link href="/launch">
-                <button className="btn">Deploy Agent</button>
+                <button className="btn" style={{ cursor: 'pointer' }}>Launch Your Agent</button>
               </Link>
             </div>
           </div>
-          <div className="ascii-box">
-            <pre style={{ margin: 0, fontSize: 10, lineHeight: 1.5 }}>{`┌─ WALL PROTOCOL ────────────────┐
-│                                │
-│  Agent NFT (ERC-7857)          │
-│    └─ sealed weights + TEE     │
-│                                │
-│  AgentShare (ERC-20)           │
-│    └─ 1,000,000 shares/agent   │
-│                                │
-│  WallVault                     │
-│    └─ inference revenue →      │
-│       pro-rata dividends       │
-│                                │
-│  WallIPO → buy shares          │
-│  WallMarket → bid/ask NFT      │
-│                                │
-└────────────────────────────────┘`}</pre>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <img
+              src="/info.png"
+              alt="How Wall of 0Gents works"
+              style={{ width: '100%', maxWidth: 320, display: 'block' }}
+            />
           </div>
         </div>
       </div>
 
-      {/* Stats strip */}
-      <div className="stat-strip">
-        <div className="stat">
-          <div className="label">Agents Listed</div>
-          <div className="value">{agents.length}</div>
-          <div className="delta">0G Galileo testnet</div>
-        </div>
-        <div className="stat">
-          <div className="label">Cumulative Revenue</div>
-          <div className="value">—</div>
-          <div className="delta">USDC · Base Sepolia</div>
-        </div>
-        <div className="stat">
-          <div className="label">Calls Today</div>
-          <div className="value">{agents.reduce((s, a) => s + a.callsToday, 0)}</div>
-          <div className="delta">via x402 inference</div>
-        </div>
+      {/* Live stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, background: 'var(--hair)', marginBottom: 40 }}>
+        {[
+          { label: 'Agents Listed', value: String(agents.length), sub: 'on 0G Galileo' },
+          { label: 'Calls Today', value: String(totalCalls), sub: 'via x402 inference' },
+          { label: 'Revenue Distributed', value: '—', sub: 'USDC to shareholders' },
+        ].map(s => (
+          <div key={s.label} className="stat">
+            <div className="label">{s.label}</div>
+            <div className="value">{s.value}</div>
+            <div className="delta">{s.sub}</div>
+          </div>
+        ))}
       </div>
 
-      {/* Markets table */}
-      <div className="markets-head">
-        <span className="section-h" style={{ border: 'none', padding: 0, margin: 0 }}>Agent Markets</span>
-        <span className="pill" style={{ marginLeft: 'auto' }}>{agents.length} listed</span>
-      </div>
-
-      <div className="panel" style={{ marginBottom: 48 }}>
-        <div className="panel-head">
-          Markets — All Agents
+      {/* Featured agents — hanya tampil kalau ada agent dengan IPO */}
+      {featured.length > 0 && <div style={{ marginBottom: 40 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 16 }}>
+          <p className="section-h" style={{ margin: 0, border: 'none', padding: 0 }}>Live Agents</p>
+          <Link href="/markets" style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--accent)', textDecoration: 'none' }}>
+            see all {agents.length} →
+          </Link>
         </div>
-        <table className="tbl">
-          <thead>
-            <tr>
-              <th>Ticker</th>
-              <th>ENS / Name</th>
-              <th>Runtime</th>
-              <th>Price / Share</th>
-              <th>Cum. Revenue</th>
-              <th>Vault Balance</th>
-              <th>Calls Today</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {agents.map(agent => (
-              <tr key={agent.ticker}>
-                <td><span className="ticker">{agent.ticker}</span></td>
-                <td><span className="mute">{agent.ensName || shortAddr(agent.owner)}</span></td>
-                <td><span className="pill">{agent.runtime}</span></td>
-                <td>{agent.pricePerShareUsdc === '—' ? <span className="mute">—</span> : `$${agent.pricePerShareUsdc}`}</td>
-                <td>{agent.cumulativeRevenueUsdc === '—' ? <span className="mute">—</span> : `$${agent.cumulativeRevenueUsdc}`}</td>
-                <td>{agent.vaultBalance === '—' ? <span className="mute">—</span> : `$${agent.vaultBalance}`}</td>
-                <td>{agent.callsToday}</td>
-                <td>
-                  <Link href={`/agent/${agent.ticker}`}>
-                    <button className="btn" style={{ height: 24, fontSize: 10 }}>View ▸</button>
-                  </Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(featured.length, 3)}, 1fr)`, gap: 1, background: 'var(--hair)' }}>
+          {featured.map(agent => (
+            <div key={agent.ticker} className="panel" style={{ padding: '16px 18px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <span className="ticker" style={{ fontSize: 16 }}>{agent.ticker}</span>
+                <span className="pill" style={{ marginLeft: 'auto', fontSize: 9 }}>{agent.runtime}</span>
+              </div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', marginBottom: 4 }}>
+                {agent.ensName || shortAddr(agent.owner)}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, margin: '12px 0' }}>
+                <div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--mute)', marginBottom: 2 }}>SHARE PRICE</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: agent.pricePerShareUsdc === '—' ? 'var(--mute)' : 'var(--fg)' }}>
+                    {agent.pricePerShareUsdc === '—' ? 'no IPO yet' : `$${agent.pricePerShareUsdc}`}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--mute)', marginBottom: 2 }}>CALLS TODAY</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg)' }}>{agent.callsToday}</div>
+                </div>
+              </div>
+              <Link href={`/agent/${agent.ticker}`}>
+                <button className="btn" style={{ width: '100%', cursor: 'pointer', fontSize: 10 }}>View Agent ▸</button>
+              </Link>
+            </div>
+          ))}
+        </div>
+      </div>}
+
+      {/* Protocol highlights */}
+      <p className="section-h">The Protocol</p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, background: 'var(--hair)', marginBottom: 40 }}>
+        {[
+          {
+            num: '01',
+            title: 'Agent NFT',
+            body: 'Your agent lives on-chain as an NFT. The model weights are sealed — no one can copy or modify them after mint.',
+          },
+          {
+            num: '02',
+            title: 'Shareholder Revenue',
+            body: 'Every time someone calls your agent, a fee goes to the vault. Shareholders can claim their cut anytime.',
+          },
+          {
+            num: '03',
+            title: 'Open IPO',
+            body: 'After listing, anyone can buy shares in your agent. Price discovery happens in the open market.',
+          },
+        ].map(item => (
+          <div key={item.num} className="panel" style={{ padding: '20px 18px' }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--accent)', marginBottom: 10, letterSpacing: '0.06em' }}>
+              {item.num}
+            </div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700, color: 'var(--fg)', marginBottom: 10 }}>
+              {item.title}
+            </div>
+            <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--mute)', lineHeight: 1.65, margin: 0 }}>
+              {item.body}
+            </p>
+          </div>
+        ))}
       </div>
 
       {/* How it works */}
       <p className="section-h">How It Works</p>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: 'var(--hair)', marginBottom: 48 }}>
         <div className="panel" style={{ padding: 20 }}>
-          <div className="pill ok" style={{ marginBottom: 12 }}>For Builders</div>
+          <div className="pill ok" style={{ marginBottom: 12 }}>For Creators</div>
           <p style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg-2)', lineHeight: 1.6 }}>
-            Mint your AI agent as an ERC-7857 iNFT on 0G chain. Seal the weights. Deploy an operator node. Let the market set your valuation.
+            Build an AI agent, mint it as an NFT, and put it on the market. Every call your agent answers earns revenue, split between you and your shareholders.
           </p>
           <Link href="/launch" style={{ display: 'inline-block', marginTop: 16 }}>
-            <button className="btn primary">List Your Agent ▸</button>
+            <button className="btn primary" style={{ cursor: 'pointer' }}>Launch Your Agent ▸</button>
           </Link>
         </div>
         <div className="panel" style={{ padding: 20 }}>
-          <div className="pill" style={{ marginBottom: 12 }}>For Investors</div>
+          <div className="pill" style={{ marginBottom: 12 }}>For Traders</div>
           <p style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg-2)', lineHeight: 1.6 }}>
-            Buy fractional shares via IPO. Earn pro-rata inference revenue. Trade on the secondary market. Hold sealed-weight security.
+            Buy shares in agents you believe in. Earn a cut of their inference revenue. Sell whenever you want on the open market.
           </p>
-          <Link href="/agent/WAGNT" style={{ display: 'inline-block', marginTop: 16 }}>
-            <button className="btn">Explore Agents ▸</button>
+          <Link href="/markets" style={{ display: 'inline-block', marginTop: 16 }}>
+            <button className="btn primary" style={{ cursor: 'pointer' }}>Browse Agents ▸</button>
           </Link>
         </div>
       </div>
