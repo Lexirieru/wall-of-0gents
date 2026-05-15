@@ -15,7 +15,7 @@ const Cfg = z.object({
   // x402 settlement asset — ERC-20 on 0G Galileo (the MockUSDC deployed with
   // the contracts). Payments are validated on 0G, not Base anymore.
   PAYMENT_ASSET: z.string().startsWith("0x").default("0x0d837aD954F4f9F06E303A86150ad0F322Ec5EB1"),
-  X402_MIN_CONFIRMATIONS: z.coerce.number().int().min(0).default(1),
+  X402_MIN_CONFIRMATIONS: z.coerce.number().int().min(0).default(0),
 
   // LLM backend
   COMPUTE_BACKEND: z.enum(["openai-compat", "0g-compute"]).default("openai-compat"),

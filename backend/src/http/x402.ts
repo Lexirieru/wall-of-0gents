@@ -55,11 +55,12 @@ export async function validateReceipt(
 
   const minConf = BigInt(cfg.X402_MIN_CONFIRMATIONS);
   const head = await zgPublic.getBlockNumber();
-  const confirmations = head - receipt.blockNumber;
+  // clamp to 0 — RPC nodes on testnet can be slightly out of sync
+  const confirmations = head >= receipt.blockNumber ? head - receipt.blockNumber : 0n;
   if (confirmations < minConf)
     throw new X402Error("UNCONFIRMED", `need ${cfg.X402_MIN_CONFIRMATIONS} confirmations, have ${confirmations}`);
 
-  // Find USDC Transfer log from expectedSender to expectedRecipient
+  // Find MockUSDC Transfer log from expectedSender to expectedRecipient
   parseAbiItem("event Transfer(address indexed from, address indexed to, uint256 value)");
 
   let sawRecipientTransfer = false;
