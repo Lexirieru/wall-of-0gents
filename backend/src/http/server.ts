@@ -220,6 +220,21 @@ export function createServer() {
         if (!text) res = err("not found", 404);
         else res = new Response(text, { status: 200, headers: { "Content-Type": "application/json" } });
       }
+      // POST /agents/test — free inference for testing (no payment required)
+      else if (req.method === "POST" && path === "/agents/test") {
+        const body = await req.json().catch(() => null) as { tokenId?: string; prompt?: string } | null;
+        if (!body?.tokenId || !body?.prompt) { res = err("missing tokenId or prompt"); }
+        else {
+          const tokenId = BigInt(body.tokenId);
+          const runtime = getRuntimeFor(tokenId);
+          const output = await runtime.run({
+            tokenId,
+            subscriber: operatorAccount.address,
+            prompt: body.prompt,
+          }).catch((e: unknown) => { throw new Error(String(e)); });
+          res = json({ callId: output.callId, response: output.response, model: output.model });
+        }
+      }
       // GET /healthz
       else if (req.method === "GET" && path === "/healthz") {
         res = json({ ok: true, operator: operatorAccount.address, ts: Date.now() });
