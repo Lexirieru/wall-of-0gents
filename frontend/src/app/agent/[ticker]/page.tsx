@@ -50,19 +50,20 @@ export default async function AgentPage({ params }: { params: Promise<{ ticker: 
 
   const hasIpo = !!factoryLaunch?.ipo && factoryLaunch.ipo !== '0x0000000000000000000000000000000000000000'
 
-  // Read IPO sold count — source of truth for shares sold (pre-minted totalSupply is always 1M)
-  let sharesSold = '—'
+  // Read IPO sold count — source of truth for public sales (pre-minted totalSupply is always 1M)
+  let ipoSold = '—'
   if (hasIpo) {
     const ipoInfo = await readIpoInfo(factoryLaunch!.ipo).catch(() => null)
     if (ipoInfo) {
       const sold = Number(ipoInfo.sold / 10n ** 18n).toLocaleString()
       const max = Number(ipoInfo.maxShares / 10n ** 18n).toLocaleString()
       const pct = ipoInfo.maxShares > 0n
-        ? Math.round(Number(ipoInfo.sold * 100n / ipoInfo.maxShares))
-        : 0
-      sharesSold = `${sold} / ${max} (${pct}%)`
+        ? (Number(ipoInfo.sold) / Number(ipoInfo.maxShares) * 100).toFixed(2)
+        : '0.00'
+      ipoSold = `${sold} / ${max} (${pct}%)`
     }
   }
+  const activeShareToken = (factoryLaunch?.shareToken ?? vault?.shareToken) as Hex | undefined
   const isRegistered = !!(vault?.active || factoryLaunch)
   const resolvedOwner = nftOwner ?? agent.owner
 
@@ -90,9 +91,9 @@ export default async function AgentPage({ params }: { params: Promise<{ ticker: 
       {/* Stats strip */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 1, background: 'var(--hair)', margin: '24px 0' }}>
         <div className="stat">
-          <div className="label">Shares Sold</div>
-          <div className="value">{sharesSold}</div>
-          <div className="delta">AgentShare ERC-20</div>
+          <div className="label">IPO Sold</div>
+          <div className="value">{ipoSold}</div>
+          <div className="delta">public IPO allocation</div>
         </div>
         <div className="stat">
           <div className="label">Vault Balance</div>
