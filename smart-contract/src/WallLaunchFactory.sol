@@ -85,7 +85,7 @@ contract WallLaunchFactory is IERC721Receiver {
         IERC20 shares = IERC20(shareToken);
 
         // Deploy revenue vault (receives x402 USDC; holders claim pro-rata)
-        WallVault vault = new WallVault(address(paymentAsset), shareToken, tokenId);
+        WallVault vault = new WallVault(address(paymentAsset), shareToken, tokenId, 1 days);
 
         // Deploy push-model IPO (no approval needed — holds shares itself)
         WallIPOPush ipo = new WallIPOPush(

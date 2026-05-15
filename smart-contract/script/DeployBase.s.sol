@@ -50,7 +50,7 @@ contract DeployBase is Script {
         vm.startBroadcast();
 
         AgentShare shares = new AgentShare(agentNft0g, tokenId, agentName, ticker, treasury);
-        WallVault vault = new WallVault(usdc, address(shares), tokenId);
+        WallVault vault = new WallVault(usdc, address(shares), tokenId, 1 days);
         WallIPO ipo = new WallIPO(address(shares), usdc, ipoPrice, ipoMaxShares, treasury, startsAt, endsAt);
 
         if (treasury == msg.sender) {

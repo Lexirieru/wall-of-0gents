@@ -28,6 +28,7 @@ contract WallIPOPush {
     error NotOpen();
     error SoldOut();
     error ZeroAmount();
+    error ZeroCost(); // SC-L2
 
     constructor(
         address _shareToken,
@@ -60,6 +61,7 @@ contract WallIPOPush {
         if (sold + amount > maxShares) revert SoldOut();
 
         uint256 cost = (amount * pricePerShare) / 1e18;
+        if (cost == 0) revert ZeroCost(); // SC-L2: reject dust buys that round to zero
         sold += amount;
 
         paymentAsset.safeTransferFrom(msg.sender, beneficiary, cost);

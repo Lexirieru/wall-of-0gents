@@ -35,14 +35,20 @@ contract WallVault {
     event Snapped(uint256 indexed snapshotId, uint256 timepoint, uint256 balance);
     event Distributed(uint256 indexed snapshotId, address indexed holder, uint256 amount);
 
+    /// @notice SC-H2: minimum seconds between consecutive snaps (0 = no limit).
+    uint256 public immutable snapMinInterval;
+    uint256 private _lastSnapTime;
+
     error NoBalance();
     error AlreadyClaimed();
     error InvalidSnapshot();
+    error SnapTooSoon(); // SC-H2
 
-    constructor(address _paymentAsset, address _shareToken, uint256 _agentTokenId) {
+    constructor(address _paymentAsset, address _shareToken, uint256 _agentTokenId, uint256 _snapMinInterval) {
         paymentAsset = IERC20(_paymentAsset);
         shareToken = AgentShare(_shareToken);
         agentTokenId = _agentTokenId;
+        snapMinInterval = _snapMinInterval;
     }
 
     /// @notice Explicitly fund the vault (also receives funds passively from x402 settlement).
@@ -55,9 +61,12 @@ contract WallVault {
     function snap() external returns (uint256 snapshotId) {
         uint256 bal = paymentAsset.balanceOf(address(this));
         if (bal == 0) revert NoBalance();
+        // SC-H2: rate-limit snaps to prevent snapshot spam / manipulation
+        if (snapMinInterval > 0 && block.timestamp < _lastSnapTime + snapMinInterval) revert SnapTooSoon();
 
         uint256 timepoint = block.number - 1;
 
+        _lastSnapTime = block.timestamp;
         snapshotId = _snapshots.length;
         _snapshots.push(Snapshot({ timepoint: timepoint, balanceAtSnapshot: bal, ts: uint64(block.timestamp) }));
 
@@ -109,14 +118,15 @@ contract WallVault {
         uint256 holderShares = shareToken.getPastVotes(holder, s.timepoint);
         uint256 totalShares = shareToken.getPastTotalSupply(s.timepoint);
 
-        claimedAt[snapshotId][holder] = true;
+        // SC-H3: early return without marking claimed — zero-share holders should not
+        // permanently lose their claim slot in case of a future share correction.
+        if (holderShares == 0 || totalShares == 0) return;
 
-        if (holderShares > 0 && totalShares > 0) {
-            uint256 amount = s.balanceAtSnapshot * holderShares / totalShares;
-            if (amount > 0) {
-                paymentAsset.safeTransfer(holder, amount);
-                emit Distributed(snapshotId, holder, amount);
-            }
-        }
+        uint256 amount = s.balanceAtSnapshot * holderShares / totalShares;
+        if (amount == 0) return;
+
+        claimedAt[snapshotId][holder] = true;
+        paymentAsset.safeTransfer(holder, amount);
+        emit Distributed(snapshotId, holder, amount);
     }
 }

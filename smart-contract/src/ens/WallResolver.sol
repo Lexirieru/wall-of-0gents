@@ -42,7 +42,11 @@ contract WallResolver is IExtendedResolver, Ownable {
         emit GatewayUrlUpdated(newUrl);
     }
 
+    error ZeroSigner(); // SC-M8
+
     function setGatewaySigner(address newSigner) external onlyOwner {
+        // SC-M8: prevent accidentally locking out the resolver
+        if (newSigner == address(0)) revert ZeroSigner();
         gatewaySigner = newSigner;
         emit GatewaySignerUpdated(newSigner);
     }
@@ -69,7 +73,10 @@ contract WallResolver is IExtendedResolver, Ownable {
 
         if (block.timestamp >= expires) revert ResponseExpired();
 
-        bytes32 digest = keccak256(abi.encodePacked(extraData, result, expires));
+        // SC-M7: domain-separated digest to prevent cross-chain / cross-contract replay
+        bytes32 digest = keccak256(
+            abi.encode(block.chainid, address(this), keccak256(extraData), keccak256(result), expires)
+        );
         address recovered = ECDSA.recover(digest, sig);
         if (recovered != gatewaySigner) revert InvalidSignature();
 

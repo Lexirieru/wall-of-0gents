@@ -22,6 +22,9 @@ contract WallFractionalizer is OwnableUpgradeable, UUPSUpgradeable, IERC721Recei
 
     mapping(uint256 => Vault) public vaults;
 
+    /// @dev SC-M5: storage gap for future upgrades.
+    uint256[50] private __gap;
+
     event Fractionalized(uint256 indexed tokenId, address shareToken, address indexed creator);
     event Redeemed(uint256 indexed tokenId, address indexed by);
 

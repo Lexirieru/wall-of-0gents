@@ -19,7 +19,7 @@ contract WallVaultTest is Test {
     function setUp() public {
         usdc = new MockERC20("USDC", "USDC", 6);
         share = new AgentShare(nft, 1, "Wall Agent Shares", "WAGNT", alice);
-        vault = new WallVault(address(usdc), address(share), 1);
+        vault = new WallVault(address(usdc), address(share), 1, 0);
 
         usdc.mint(keeper, 100_000e6);
         vm.prank(keeper);
