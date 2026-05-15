@@ -1122,7 +1122,10 @@ function ListStep({
 
   const handleListOnExchange = async () => {
     setListState('busy'); setListErr('')
-    const priceUsdc = price ? String(Math.round(parseFloat(price) * 1_000_000)) : '100000'
+    const parsedPrice = parseFloat(price)
+    const priceUsdc = price && Number.isFinite(parsedPrice) && parsedPrice > 0
+      ? String(Math.round(parsedPrice * 1_000_000))
+      : '100000'
     const result = await registerAgentInBackend({
       tokenId,
       ticker: ticker.toUpperCase(),

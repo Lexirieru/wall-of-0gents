@@ -184,10 +184,7 @@ export default function ServicesPopup({ index, activePopupIndex, onClose, onOpen
                   </span>
                 </div>
                 <div className={styles.itemContent}>
-                  <div
-                    className="p4"
-                    dangerouslySetInnerHTML={{ __html: sub.description }}
-                  />
+                  <div className="p4">{sub.description}</div>
                 </div>
               </div>
             ))}

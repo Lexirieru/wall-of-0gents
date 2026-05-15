@@ -114,15 +114,6 @@ export default function WorksItems() {
       ? worksItemsData
       : worksItemsData.filter(i => i.type.toLowerCase() === activeFilter)
 
-  useEffect(() => {
-    gsap.registerPlugin(ScrollTrigger)
-    showHideFilter()
-    return () => {
-      stRef.current?.kill()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeFilter])
-
   const showHideFilter = () => {
     stRef.current?.kill()
     stRef.current = ScrollTrigger.create({
@@ -143,6 +134,15 @@ export default function WorksItems() {
       },
     })
   }
+
+  useEffect(() => {
+    gsap.registerPlugin(ScrollTrigger)
+    showHideFilter()
+    return () => {
+      stRef.current?.kill()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeFilter])
 
   const openPopup = (id: number) => {
     setClickedId(id)

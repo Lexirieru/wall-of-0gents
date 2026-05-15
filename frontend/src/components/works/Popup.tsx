@@ -165,10 +165,7 @@ export default function WorksPopup({ itemId, itemsData, onClose }: Props) {
                   </div>
                   <div className={`list-content ${styles.listContent}`}>
                     <div className={styles.listContentText}>
-                      <div
-                        className="p3"
-                        dangerouslySetInnerHTML={{ __html: st.description }}
-                      />
+                      <div className="p3">{st.description}</div>
                     </div>
                   </div>
                 </div>

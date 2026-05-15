@@ -46,6 +46,14 @@ interface BackendEntry {
   createdAt?: number
 }
 
+function isValidEntry(e: unknown): e is BackendEntry {
+  if (!e || typeof e !== 'object') return false
+  const o = e as Record<string, unknown>
+  return typeof o.ticker === 'string' && o.ticker.trim().length > 0 &&
+    (typeof o.tokenId === 'string' || typeof o.tokenId === 'number') &&
+    Number.isFinite(Number(o.tokenId)) && Number(o.tokenId) > 0
+}
+
 async function fetchBackendAgents(): Promise<BackendEntry[]> {
   try {
     const res = await fetch(`${OPERATOR_URL}/agents`, {
@@ -54,8 +62,7 @@ async function fetchBackendAgents(): Promise<BackendEntry[]> {
     })
     if (!res.ok) return []
     const data = await res.json()
-    // Backend returns a plain array of AgentEntry
-    if (Array.isArray(data)) return data as BackendEntry[]
+    if (Array.isArray(data)) return (data as unknown[]).filter(isValidEntry)
     return []
   } catch {
     return []
@@ -199,7 +206,7 @@ export async function readShareTotalSupply(shareToken: Hex): Promise<bigint> {
     })
     return supply as bigint
   } catch {
-    return 1_000_000n * BigInt(1e18)
+    return 1_000_000n * 10n ** 18n
   }
 }
 
