@@ -1,0 +1,8 @@
+# Smart contract dependencies (managed via foundry submodules)
+smart-contract/lib/
+
+# Frontend
+frontend/node_modules/
+
+# Misc
+.DS_Store
