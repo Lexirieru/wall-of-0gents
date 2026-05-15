@@ -1,9 +1,8 @@
-import { createHmac, randomUUID } from "node:crypto";
 import { createHash } from "node:crypto";
-import { cfg } from "../config.js";
+import { operatorAccount } from "../chain/clients.js";
 
 export interface InferenceReceipt {
-  version: 2;
+  version: 3;
   callId: string;
   tokenId: string;
   subscriber: string;
@@ -11,7 +10,11 @@ export interface InferenceReceipt {
   bundleHashBefore: string;
   bundleHashAfter: string;
   timestamp: number;
+  /** EIP-191 (personal_sign) signature over `digest`, recoverable to `operator`. */
   signature: string;
+  /** Operator address that signed the receipt — recover from `digest`+`signature`. */
+  operator: string;
+  signatureType: "eip191";
 }
 
 function digest(fields: Record<string, string>): string {
@@ -22,18 +25,14 @@ function digest(fields: Record<string, string>): string {
   return createHash("sha256").update(payload).digest("hex");
 }
 
-function sign(d: string): string {
-  return createHmac("sha256", cfg.OPERATOR_PRIVATE_KEY).update(d).digest("hex");
-}
-
-export function buildReceipt(params: {
+export async function buildReceipt(params: {
   callId: string;
   tokenId: bigint;
   subscriber: `0x${string}`;
   output: string;
   bundleHashBefore: string;
   bundleHashAfter: string;
-}): InferenceReceipt {
+}): Promise<InferenceReceipt> {
   const outputHash = createHash("sha256").update(params.output).digest("hex");
   const timestamp = Date.now();
 
@@ -48,7 +47,22 @@ export function buildReceipt(params: {
   };
 
   const d = digest(fields);
-  const signature = sign(d);
+  // Real ECDSA signature tied to the operator's on-chain identity — any third
+  // party can recover the signer from (digest, signature) and check it equals
+  // `operator`, without needing any shared secret.
+  const signature = await operatorAccount.signMessage({ message: d });
 
-  return { version: 2, ...fields, signature };
+  return {
+    version: 3,
+    callId: fields.callId,
+    tokenId: fields.tokenId,
+    subscriber: fields.subscriber,
+    outputHash: fields.outputHash,
+    bundleHashBefore: fields.bundleHashBefore,
+    bundleHashAfter: fields.bundleHashAfter,
+    timestamp,
+    signature,
+    operator: operatorAccount.address,
+    signatureType: "eip191",
+  };
 }

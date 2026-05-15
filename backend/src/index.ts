@@ -1,28 +1,37 @@
 import { cfg } from "./config.js";
-import { createServer } from "./http/server.js";
+import { log } from "./log.js";
+import { createServer, recoverPendingCalls } from "./http/server.js";
 import { dynamicRegistry } from "./store/dynamic-registry.js";
+import { closeDb } from "./store/db.js";
 import { operatorAccount } from "./chain/clients.js";
 
 async function main() {
-  console.log("=== Wall of 0gents Operator Node ===");
-  console.log(`operator: ${operatorAccount.address}`);
-  console.log(`http port: ${cfg.HTTP_PORT}`);
-  console.log(`compute:  ${cfg.COMPUTE_BACKEND} @ ${cfg.COMPUTE_BASE_URL}`);
+  log.info("starting Wall of 0gents operator node", {
+    operator: operatorAccount.address,
+    httpPort: cfg.HTTP_PORT,
+    compute: `${cfg.COMPUTE_BACKEND} @ ${cfg.COMPUTE_BASE_URL}`,
+  });
 
   await dynamicRegistry.init();
+  await recoverPendingCalls();
 
   const server = createServer();
-  console.log(`listening on http://localhost:${cfg.HTTP_PORT}`);
-  console.log("routes:");
-  console.log("  POST /x402/infer          — paid inference");
-  console.log("  GET  /x402/calls/:callId  — poll result");
-  console.log("  GET  /profile/:tokenId    — agent profile");
-  console.log("  GET  /agents              — list agents");
-  console.log("  POST /agents/register     — register agent");
-  console.log("  GET  /receipts            — query receipts");
-  console.log("  POST /og-storage/pin      — pin to 0G storage");
-  console.log("  GET  /og-storage/:hash    — fetch from 0G storage");
-  console.log("  GET  /healthz             — liveness");
+  log.info("listening", { url: `http://localhost:${cfg.HTTP_PORT}` });
+
+  let shuttingDown = false;
+  const shutdown = (sig: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    log.warn("shutting down", { signal: sig });
+    server.stop(true); // stop accepting, let in-flight finish
+    closeDb();
+    process.exit(0);
+  };
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => shutdown("SIGINT"));
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+main().catch((e) => {
+  log.error("fatal", { err: e instanceof Error ? e.stack ?? e.message : String(e) });
+  process.exit(1);
+});

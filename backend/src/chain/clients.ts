@@ -72,3 +72,29 @@ export async function authorizeUsage(tokenId: bigint, grantee: `0x${string}`, ex
     args: [tokenId, grantee, expiresAt],
   });
 }
+
+/**
+ * Verify that `signature` over `message` was produced by `claimedOwner`
+ * AND that `claimedOwner` currently owns `tokenId`. Supports EOAs and
+ * ERC-1271 smart-account owners (via on-chain verifyMessage).
+ */
+export async function verifyAgentOwner(
+  tokenId: bigint,
+  claimedOwner: `0x${string}`,
+  message: string,
+  signature: `0x${string}`,
+): Promise<boolean> {
+  let onChainOwner: `0x${string}`;
+  try {
+    onChainOwner = await getAgentOwner(tokenId);
+  } catch {
+    return false;
+  }
+  if (onChainOwner.toLowerCase() !== claimedOwner.toLowerCase()) return false;
+
+  try {
+    return await zgPublic.verifyMessage({ address: claimedOwner, message, signature });
+  } catch {
+    return false;
+  }
+}

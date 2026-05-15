@@ -1,15 +1,32 @@
 import { randomUUID } from "node:crypto";
+import type { Server } from "bun";
+import { z } from "zod";
 import { cfg } from "../config.js";
+import { log } from "../log.js";
 import { validateReceipt, makeChallenge, X402Error } from "./x402.js";
-import { getAgentInfo, getAgentOwner, authorizeUsage, operatorAccount } from "../chain/clients.js";
+import {
+  getAgentInfo,
+  getAgentOwner,
+  operatorAccount,
+  verifyAgentOwner,
+  zgPublic,
+  basePublic,
+} from "../chain/clients.js";
 import { getRuntimeFor } from "../runtime/index.js";
 import { priceFor } from "../runtime/pricing.js";
-import { buildReceipt } from "../compute/receipt.js";
-import { saveReceipt, queryReceipts, getReceipt } from "../store/receipts.js";
+import { queryReceipts, getReceipt } from "../store/receipts.js";
 import { dynamicRegistry, type AgentEntry } from "../store/dynamic-registry.js";
-import { pinJson, fetchText } from "../storage/og-storage-impl.js";
+import { consumePayment, PaymentReplayError } from "../store/payments.js";
+import { createPendingCall, getCall, listPendingCalls } from "../store/calls.js";
+import { executeCall } from "../compute/run-call.js";
+import { getDb } from "../store/db.js";
+import { pinJson, fetchText, isValidHash } from "../storage/og-storage-impl.js";
 
-// In-memory call tracker (expires after 10 min)
+type BunServer = Server<undefined>;
+
+const ZERO = "0x0000000000000000000000000000000000000000";
+
+// Fast in-memory poll cache (DB is the durable source of truth).
 interface PendingCall {
   status: "pending" | "done" | "error";
   result?: unknown;
@@ -36,217 +53,362 @@ function cors(res: Response): Response {
   return res;
 }
 
-async function handleInfer(req: Request): Promise<Response> {
-  const body = await req.json().catch(() => null);
-  if (!body) return err("invalid JSON");
+// ─── Validation schemas ───────────────────────────────────────────────────
+const Address = z.string().regex(/^0x[0-9a-fA-F]{40}$/, "invalid address");
+const TxHash = z.string().regex(/^0x[0-9a-fA-F]{64}$/, "invalid tx hash");
+const TokenId = z.string().regex(/^\d+$/, "tokenId must be a non-negative integer");
+const Ticker = z.string().trim().min(1).max(16).regex(/^[A-Za-z0-9]+$/, "ticker must be alphanumeric");
+const PriceUsdc = z.string().regex(/^\d+$/, "priceUsdc must be an integer string");
 
-  const { tokenId: tokenIdStr, txHash, prompt, subscriber } = body as Record<string, string>;
-  if (!tokenIdStr || !prompt || !subscriber) return err("missing tokenId, prompt, or subscriber");
+const InferSchema = z.object({
+  tokenId: TokenId,
+  prompt: z.string().min(1).max(16_000),
+  subscriber: Address,
+  txHash: TxHash.optional(),
+});
+
+const TestSchema = z.object({
+  tokenId: TokenId,
+  prompt: z.string().min(1).max(16_000),
+});
+
+const RegisterSchema = z.object({
+  tokenId: TokenId,
+  ticker: Ticker,
+  owner: Address,
+  signature: z.string().regex(/^0x[0-9a-fA-F]{130}$/, "invalid signature"),
+  ts: z.number().int(),
+  name: z.string().trim().min(1).max(64).optional(),
+  description: z.string().max(2_000).optional(),
+  systemPrompt: z.string().max(16_000).optional(),
+  model: z.string().max(128).optional(),
+  priceUsdc: PriceUsdc.optional(),
+  runtime: z.enum(["0g-ai", "openai-compat"]).optional(),
+  shareToken: Address.optional(),
+  operatorUrl: z.string().url().max(256).optional(),
+});
+
+function registerMessage(tokenId: string, ticker: string, ts: number): string {
+  return `Wall of 0gents :: register agent\ntokenId=${tokenId}\nticker=${ticker.toUpperCase()}\nts=${ts}`;
+}
+
+// ─── Rate limiting (fixed window, per IP + bucket) ────────────────────────
+const RATE: Record<string, { limit: number; windowMs: number }> = {
+  infer: { limit: 30, windowMs: 60_000 },
+  test: { limit: 10, windowMs: 60_000 },
+  register: { limit: 10, windowMs: 60_000 },
+  storage: { limit: 30, windowMs: 60_000 },
+};
+const rlBuckets = new Map<string, { count: number; resetAt: number }>();
+
+function rateLimited(ip: string, bucket: keyof typeof RATE): boolean {
+  const conf = RATE[bucket];
+  const key = `${bucket}:${ip}`;
+  const now = Date.now();
+  const cur = rlBuckets.get(key);
+  if (!cur || cur.resetAt < now) {
+    rlBuckets.set(key, { count: 1, resetAt: now + conf.windowMs });
+    return false;
+  }
+  cur.count++;
+  return cur.count > conf.limit;
+}
+
+function clientIp(req: Request, server: BunServer): string {
+  return (
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    server.requestIP(req)?.address ||
+    "unknown"
+  );
+}
+
+// Resolve the on-chain recipient for a token's payments. Returns null when the
+// agent is not configured for payment (so we never issue an unpayable challenge).
+async function resolveVault(tokenId: bigint): Promise<`0x${string}` | null> {
+  let vaultBase = "";
+  try {
+    vaultBase = (await getAgentInfo(tokenId)).vaultBase;
+  } catch {
+    /* not registered yet */
+  }
+  if (vaultBase && vaultBase !== ZERO) return vaultBase as `0x${string}`;
+  if (cfg.WALL_MARKET && cfg.WALL_MARKET !== ZERO) return cfg.WALL_MARKET as `0x${string}`;
+  return null;
+}
+
+function startInference(p: {
+  callId: string;
+  tokenId: bigint;
+  subscriber: `0x${string}`;
+  prompt: string;
+}) {
+  const mem: PendingCall = { status: "pending", expiresAt: Date.now() + 10 * 60_000 };
+  calls.set(p.callId, mem);
+  void executeCall(p).then((out) => {
+    if ("error" in out) {
+      mem.status = "error";
+      mem.error = out.error;
+    } else {
+      mem.status = "done";
+      mem.result = { callId: out.callId, response: out.response, receipt: out.receipt };
+    }
+  });
+}
+
+/** Re-run paid calls that were left pending by a crash/restart. */
+export async function recoverPendingCalls() {
+  const pend = listPendingCalls();
+  if (pend.length === 0) return;
+  log.warn("recovering orphaned paid calls", { count: pend.length });
+  for (const c of pend) {
+    startInference({
+      callId: c.callId,
+      tokenId: BigInt(c.tokenId),
+      subscriber: c.subscriber as `0x${string}`,
+      prompt: c.prompt,
+    });
+  }
+}
+
+async function handleInfer(req: Request): Promise<Response> {
+  const raw = await req.json().catch(() => null);
+  const parsed = InferSchema.safeParse(raw);
+  if (!parsed.success) return err(parsed.error.issues[0]?.message ?? "invalid request");
+  const { tokenId: tokenIdStr, txHash, prompt, subscriber } = parsed.data;
 
   const tokenId = BigInt(tokenIdStr);
   const price = priceFor(tokenId);
 
+  const vaultAddr = await resolveVault(tokenId);
+  if (!vaultAddr)
+    return err("agent has no payment vault configured (not registered on-chain)", 409);
+
   // No payment receipt → 402
-  if (!txHash) {
-    let vaultAddress: string;
-    try {
-      const info = await getAgentInfo(tokenId);
-      vaultAddress = info.vaultBase || cfg.WALL_MARKET;
-    } catch {
-      vaultAddress = cfg.WALL_MARKET;
-    }
-    return json({ x402: makeChallenge(vaultAddress, price) }, 402);
-  }
+  if (!txHash) return json({ x402: makeChallenge(vaultAddr, price) }, 402);
 
-  // Validate payment
-  let vaultAddr: `0x${string}`;
+  // Validate payment: must be from `subscriber` to the vault, ≥ price.
   try {
-    const info = await getAgentInfo(tokenId);
-    vaultAddr = (info.vaultBase as `0x${string}`) || (cfg.WALL_MARKET as `0x${string}`);
-  } catch {
-    vaultAddr = cfg.WALL_MARKET as `0x${string}`;
-  }
-
-  try {
-    await validateReceipt(txHash as `0x${string}`, vaultAddr, price);
+    await validateReceipt(
+      txHash as `0x${string}`,
+      vaultAddr,
+      price,
+      subscriber as `0x${string}`,
+    );
   } catch (e) {
     if (e instanceof X402Error) return err(`payment error: ${e.message}`, 402);
     throw e;
   }
 
-  // Kick off async inference
+  // Anti-replay: atomically consume the tx bound to (tokenId, subscriber).
+  try {
+    consumePayment(txHash as `0x${string}`, tokenId, subscriber as `0x${string}`, price);
+  } catch (e) {
+    if (e instanceof PaymentReplayError)
+      return err("payment already used for a previous inference", 409);
+    throw e;
+  }
+
+  // Persist call state BEFORE running so a crash can't lose a paid call.
   const callId = randomUUID();
-  const call: PendingCall = { status: "pending", expiresAt: Date.now() + 10 * 60_000 };
-  calls.set(callId, call);
-
-  (async () => {
-    try {
-      const runtime = getRuntimeFor(tokenId);
-      const output = await runtime.run({ tokenId, subscriber: subscriber as `0x${string}`, prompt });
-
-      const receipt = buildReceipt({
-        callId,
-        tokenId,
-        subscriber: subscriber as `0x${string}`,
-        output: output.response,
-        bundleHashBefore: output.bundleHashBefore,
-        bundleHashAfter: output.bundleHashAfter,
-      });
-
-      await saveReceipt(receipt);
-
-      // Authorize usage on-chain (best-effort)
-      const expiresAt = BigInt(Math.floor(Date.now() / 1000) + 3600);
-      authorizeUsage(tokenId, subscriber as `0x${string}`, expiresAt).catch(() => {});
-
-      call.status = "done";
-      call.result = { callId, response: output.response, receipt };
-    } catch (e: unknown) {
-      call.status = "error";
-      call.error = e instanceof Error ? e.message : String(e);
-    }
-  })();
+  createPendingCall({ callId, txHash, tokenId, subscriber, prompt });
+  startInference({ callId, tokenId, subscriber: subscriber as `0x${string}`, prompt });
 
   return json({ callId, status: "pending" }, 202);
 }
 
-async function handlePollCall(callId: string): Promise<Response> {
-  const call = calls.get(callId);
-  if (!call) {
-    const receipt = await getReceipt(callId);
-    if (receipt) return json({ status: "done", result: { callId, receipt } });
-    return err("call not found", 404);
+function handlePollCall(callId: string): Response {
+  const mem = calls.get(callId);
+  if (mem) {
+    if (mem.status === "pending") return json({ callId, status: "pending" });
+    if (mem.status === "error") return json({ callId, status: "error", error: mem.error }, 500);
+    return json({ callId, status: "done", result: mem.result });
   }
-  if (call.status === "pending") return json({ callId, status: "pending" });
-  if (call.status === "error") return json({ callId, status: "error", error: call.error }, 500);
-  return json({ callId, status: "done", result: call.result });
+
+  // Not in memory → fall back to durable state.
+  const stored = getReceipt(callId);
+  if (stored)
+    return json({
+      status: "done",
+      result: { callId, response: stored.response, receipt: stored.receipt },
+    });
+
+  const row = getCall(callId);
+  if (row) {
+    if (row.status === "error")
+      return json({ callId, status: "error", error: row.error ?? "inference failed" }, 500);
+    return json({ callId, status: row.status });
+  }
+
+  return err("call not found", 404);
 }
 
 async function handleProfile(tokenIdStr: string): Promise<Response> {
+  if (!/^\d+$/.test(tokenIdStr)) return err("invalid tokenId");
   const tokenId = BigInt(tokenIdStr);
   const [owner, isReg] = await Promise.allSettled([
     getAgentOwner(tokenId),
     getAgentInfo(tokenId),
   ]);
 
-  const dynamic = dynamicRegistry.get(tokenId);
-
   return json({
     tokenId: tokenIdStr,
     owner: owner.status === "fulfilled" ? owner.value : null,
     registry: isReg.status === "fulfilled" ? isReg.value : null,
-    dynamic: dynamic ?? null,
+    dynamic: dynamicRegistry.get(tokenId) ?? null,
     priceUsdc: priceFor(tokenId).toString(),
   });
 }
 
+async function handleRegister(req: Request): Promise<Response> {
+  const raw = await req.json().catch(() => null);
+  const parsed = RegisterSchema.safeParse(raw);
+  if (!parsed.success) return err(parsed.error.issues[0]?.message ?? "invalid request");
+  const b = parsed.data;
+
+  if (Math.abs(Date.now() - b.ts) > 10 * 60_000)
+    return err("signature timestamp out of range", 401);
+
+  const message = registerMessage(b.tokenId, b.ticker, b.ts);
+  const ok = await verifyAgentOwner(
+    BigInt(b.tokenId),
+    b.owner as `0x${string}`,
+    message,
+    b.signature as `0x${string}`,
+  );
+  if (!ok) return err("not authorized: signature must be from the current NFT owner", 401);
+
+  const ticker = b.ticker.toUpperCase();
+  const entry: AgentEntry = {
+    tokenId: b.tokenId,
+    ticker,
+    name: b.name ?? ticker,
+    description: b.description ?? "",
+    systemPrompt: b.systemPrompt ?? `You are ${ticker}, an AI agent on Wall of 0Gents.`,
+    model: b.model ?? "google/gemini-2.0-flash-lite-001",
+    priceUsdc: b.priceUsdc ?? "100000",
+    runtime: b.runtime ?? "0g-ai",
+    shareToken: b.shareToken,
+    operatorUrl: b.operatorUrl,
+    createdAt: Date.now(),
+  };
+  await dynamicRegistry.register(entry);
+  log.info("agent registered", { tokenId: entry.tokenId, ticker: entry.ticker });
+  return json({ ok: true, entry });
+}
+
+async function handleTest(req: Request): Promise<Response> {
+  const raw = await req.json().catch(() => null);
+  const parsed = TestSchema.safeParse(raw);
+  if (!parsed.success) return err(parsed.error.issues[0]?.message ?? "invalid request");
+  const tokenId = BigInt(parsed.data.tokenId);
+  const runtime = getRuntimeFor(tokenId);
+  const output = await runtime.run({
+    tokenId,
+    subscriber: operatorAccount.address,
+    prompt: parsed.data.prompt,
+  });
+  return json({ callId: output.callId, response: output.response, model: output.model });
+}
+
+async function handleReadyz(): Promise<Response> {
+  const checks: Record<string, boolean> = {};
+  const results = await Promise.allSettled([
+    zgPublic.getBlockNumber(),
+    basePublic.getBlockNumber(),
+    Promise.resolve().then(() => getDb().query("SELECT 1").get()),
+  ]);
+  checks.zgRpc = results[0].status === "fulfilled";
+  checks.baseRpc = results[1].status === "fulfilled";
+  checks.db = results[2].status === "fulfilled";
+  const ok = Object.values(checks).every(Boolean);
+  return json({ ok, checks }, ok ? 200 : 503);
+}
+
 export function createServer() {
-  // Clean up stale calls every minute
   setInterval(() => {
     const now = Date.now();
-    for (const [id, call] of calls) {
-      if (call.expiresAt < now) calls.delete(id);
-    }
+    for (const [id, call] of calls) if (call.expiresAt < now) calls.delete(id);
+    for (const [k, v] of rlBuckets) if (v.resetAt < now) rlBuckets.delete(k);
   }, 60_000);
 
   return Bun.serve({
     port: cfg.HTTP_PORT,
-    async fetch(req) {
+    async fetch(req, server) {
       const url = new URL(req.url);
       const path = url.pathname;
+      const reqId = randomUUID().slice(0, 8);
+      const started = Date.now();
 
       if (req.method === "OPTIONS") return cors(new Response(null, { status: 204 }));
 
+      const ip = clientIp(req, server);
       let res: Response;
 
-      // POST /x402/infer
-      if (req.method === "POST" && path === "/x402/infer") {
-        res = await handleInfer(req).catch((e) => err(String(e), 500));
-      }
-      // GET /x402/calls/:callId
-      else if (req.method === "GET" && path.startsWith("/x402/calls/")) {
-        const callId = path.split("/x402/calls/")[1];
-        res = await handlePollCall(callId).catch((e) => err(String(e), 500));
-      }
-      // GET /profile/:tokenId
-      else if (req.method === "GET" && path.startsWith("/profile/")) {
-        const tokenIdStr = path.split("/profile/")[1];
-        res = await handleProfile(tokenIdStr).catch((e) => err(String(e), 500));
-      }
-      // GET /agents
-      else if (req.method === "GET" && path === "/agents") {
-        const list = await dynamicRegistry.list();
-        res = json(list);
-      }
-      // POST /agents/register
-      else if (req.method === "POST" && path === "/agents/register") {
-        const body = await req.json().catch(() => null) as Partial<AgentEntry> | null;
-        if (!body?.tokenId || !body?.ticker) {
-          res = err("missing tokenId or ticker");
+      try {
+        if (req.method === "POST" && path === "/x402/infer") {
+          res = rateLimited(ip, "infer") ? err("rate limit exceeded", 429) : await handleInfer(req);
+        } else if (req.method === "GET" && path.startsWith("/x402/calls/")) {
+          const callId = path.split("/x402/calls/")[1];
+          res = callId ? handlePollCall(callId) : err("call not found", 404);
+        } else if (req.method === "GET" && path.startsWith("/profile/")) {
+          res = await handleProfile(path.split("/profile/")[1] ?? "");
+        } else if (req.method === "GET" && path === "/agents") {
+          res = json(await dynamicRegistry.list());
+        } else if (req.method === "POST" && path === "/agents/register") {
+          res = rateLimited(ip, "register")
+            ? err("rate limit exceeded", 429)
+            : await handleRegister(req);
+        } else if (req.method === "GET" && path === "/receipts") {
+          const tokenId = url.searchParams.get("tokenId") ?? undefined;
+          const subscriber = url.searchParams.get("subscriber") ?? undefined;
+          if (tokenId && !/^\d+$/.test(tokenId)) res = err("invalid tokenId");
+          else if (subscriber && !/^0x[0-9a-fA-F]{40}$/.test(subscriber))
+            res = err("invalid subscriber");
+          else res = json(queryReceipts(tokenId, subscriber));
+        } else if (req.method === "POST" && path === "/og-storage/pin") {
+          if (rateLimited(ip, "storage")) res = err("rate limit exceeded", 429);
+          else {
+            const body = await req.json().catch(() => null);
+            if (body == null || typeof body !== "object") res = err("invalid JSON object");
+            else res = json({ hash: await pinJson(body) });
+          }
+        } else if (req.method === "GET" && path.startsWith("/og-storage/")) {
+          const hash = path.split("/og-storage/")[1] ?? "";
+          if (!isValidHash(hash)) res = err("invalid hash", 400);
+          else {
+            const text = await fetchText(hash);
+            res = text
+              ? new Response(text, { status: 200, headers: { "Content-Type": "application/json" } })
+              : err("not found", 404);
+          }
+        } else if (req.method === "POST" && path === "/agents/test") {
+          res = rateLimited(ip, "test") ? err("rate limit exceeded", 429) : await handleTest(req);
+        } else if (req.method === "GET" && path === "/healthz") {
+          res = json({ ok: true, operator: operatorAccount.address, ts: Date.now() });
+        } else if (req.method === "GET" && path === "/readyz") {
+          res = await handleReadyz();
         } else {
-          const entry: AgentEntry = {
-            tokenId: body.tokenId,
-            ticker: body.ticker.toUpperCase(),
-            name: body.name ?? body.ticker,
-            description: body.description ?? "",
-            systemPrompt: body.systemPrompt ?? `You are ${body.ticker.toUpperCase()}, an AI agent on Wall of 0Gents.`,
-            model: body.model ?? "google/gemini-2.0-flash-lite-001",
-            priceUsdc: body.priceUsdc ?? "100000",
-            runtime: body.runtime ?? "0g-ai",
-            shareToken: body.shareToken,
-            operatorUrl: body.operatorUrl,
-            createdAt: Date.now(),
-          };
-          await dynamicRegistry.register(entry);
-          res = json({ ok: true, entry });
+          res = err("not found", 404);
         }
-      }
-      // GET /receipts
-      else if (req.method === "GET" && path === "/receipts") {
-        const tokenId = url.searchParams.get("tokenId") ?? undefined;
-        const subscriber = url.searchParams.get("subscriber") ?? undefined;
-        const receipts = await queryReceipts(tokenId, subscriber);
-        res = json(receipts);
-      }
-      // POST /og-storage/pin
-      else if (req.method === "POST" && path === "/og-storage/pin") {
-        const body = await req.json().catch(() => null);
-        if (!body) { res = err("invalid JSON"); }
-        else {
-          const hash = await pinJson(body);
-          res = json({ hash });
-        }
-      }
-      // GET /og-storage/:hash
-      else if (req.method === "GET" && path.startsWith("/og-storage/")) {
-        const hash = path.split("/og-storage/")[1];
-        const text = await fetchText(hash);
-        if (!text) res = err("not found", 404);
-        else res = new Response(text, { status: 200, headers: { "Content-Type": "application/json" } });
-      }
-      // POST /agents/test — free inference for testing (no payment required)
-      else if (req.method === "POST" && path === "/agents/test") {
-        const body = await req.json().catch(() => null) as { tokenId?: string; prompt?: string } | null;
-        if (!body?.tokenId || !body?.prompt) { res = err("missing tokenId or prompt"); }
-        else {
-          const tokenId = BigInt(body.tokenId);
-          const runtime = getRuntimeFor(tokenId);
-          const output = await runtime.run({
-            tokenId,
-            subscriber: operatorAccount.address,
-            prompt: body.prompt,
-          }).catch((e: unknown) => { throw new Error(String(e)); });
-          res = json({ callId: output.callId, response: output.response, model: output.model });
-        }
-      }
-      // GET /healthz
-      else if (req.method === "GET" && path === "/healthz") {
-        res = json({ ok: true, operator: operatorAccount.address, ts: Date.now() });
-      }
-      else {
-        res = err("not found", 404);
+      } catch (e) {
+        log.error("unhandled error", {
+          reqId,
+          method: req.method,
+          path,
+          err: e instanceof Error ? e.message : String(e),
+        });
+        res = err("internal server error", 500);
       }
 
+      res.headers.set("x-request-id", reqId);
+      log.info("request", {
+        reqId,
+        method: req.method,
+        path,
+        status: res.status,
+        ms: Date.now() - started,
+        ip,
+      });
       return cors(res);
     },
   });
