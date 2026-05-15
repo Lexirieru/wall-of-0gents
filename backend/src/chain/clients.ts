@@ -28,11 +28,22 @@ export const zgWallet = createWalletClient({
   transport: http(cfg.ZG_RPC_URL),
 });
 
-// Cache: tokenId → { shareToken, vaultBase, operator }
-const agentInfoCache = new Map<bigint, { shareToken: `0x${string}`; vaultBase: `0x${string}`; operator: `0x${string}` }>();
+const ZERO_ADDR = "0x0000000000000000000000000000000000000000";
 
-export async function getAgentInfo(tokenId: bigint) {
-  if (agentInfoCache.has(tokenId)) return agentInfoCache.get(tokenId)!;
+type AgentInfo = { shareToken: `0x${string}`; vaultBase: `0x${string}`; operator: `0x${string}` };
+
+// TTL cache: tokenId → { value, expiresAt }. Two integration-critical rules:
+//  1. Entries expire (so on-chain changes are picked up without a restart).
+//  2. "Not registered yet" results (operator == 0x0) are NEVER cached, so the
+//     backend keeps re-checking until the agent is registered on-chain — then
+//     starts serving the real vault. Without this, a single early read would
+//     pin vaultBase=0x0 forever and x402 would route to the market fallback
+//     even after on-chain registration.
+const agentInfoCache = new Map<bigint, { value: AgentInfo; expiresAt: number }>();
+
+export async function getAgentInfo(tokenId: bigint): Promise<AgentInfo> {
+  const hit = agentInfoCache.get(tokenId);
+  if (hit && hit.expiresAt > Date.now()) return hit.value;
 
   const info = await zgPublic.readContract({
     address: cfg.WALL_REGISTRY as `0x${string}`,
@@ -41,9 +52,27 @@ export async function getAgentInfo(tokenId: bigint) {
     args: [tokenId],
   });
 
-  const result = { shareToken: info.shareToken, vaultBase: info.vaultBase, operator: info.operator };
-  agentInfoCache.set(tokenId, result);
+  const result: AgentInfo = {
+    shareToken: info.shareToken,
+    vaultBase: info.vaultBase,
+    operator: info.operator,
+  };
+
+  // Only cache once the agent is actually registered on-chain.
+  if (result.operator !== ZERO_ADDR) {
+    agentInfoCache.set(tokenId, {
+      value: result,
+      expiresAt: Date.now() + cfg.AGENT_INFO_CACHE_TTL_MS,
+    });
+  } else {
+    agentInfoCache.delete(tokenId);
+  }
   return result;
+}
+
+/** Drop a cached entry (e.g. after observing an on-chain registration). */
+export function invalidateAgentInfo(tokenId: bigint): void {
+  agentInfoCache.delete(tokenId);
 }
 
 export async function getAgentOwner(tokenId: bigint): Promise<`0x${string}`> {

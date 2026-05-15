@@ -27,6 +27,9 @@ const Cfg = z.object({
   COMPUTE_MAX_RETRIES: z.coerce.number().int().min(0).default(1),
   ZG_COMPUTE_PROVIDER_ADDRESS: z.string().startsWith("0x").default("0x69Eb5a0BD7d0f4bF39eD5CE9Bd3376c61863aE08"),
 
+  // On-chain read cache TTL for WallRegistry.info (ms)
+  AGENT_INFO_CACHE_TTL_MS: z.coerce.number().int().positive().default(60_000),
+
   // Server
   HTTP_PORT: z.coerce.number().default(8402),
 
