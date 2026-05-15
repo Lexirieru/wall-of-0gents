@@ -1,0 +1,6 @@
+{
+  "chainId": 16602,
+  "marketImpl": "0xc96e1684e35C589F71836f660919427457a4a0ef",
+  "registryImpl": "0x2542Bb7Fe9dAB38f3602136C68B9846056BDc621",
+  "wallLaunchFactory": "0xE370EeAf593B1c0F0a3cc22df0D3b712c4DC5817"
+}
