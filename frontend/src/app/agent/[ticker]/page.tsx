@@ -1,7 +1,10 @@
 import Link from 'next/link'
-import { loadInferences } from '@/lib/agents'
+import { loadInferences, readVault, readNftOwner, readShareTotalSupply, readFactoryLaunch, getBackendAgent } from '@/lib/agents'
 import { shortAddr, relativeTime } from '@/lib/format'
 import { InferenceBox } from '@/components/market/InferenceBox'
+import { BidPanel } from '@/components/market/BidPanel'
+import { BuySharesPanel } from '@/components/market/BuySharesPanel'
+import type { Hex } from 'viem'
 
 export const revalidate = 30
 
@@ -17,11 +20,56 @@ const KNOWN_AGENTS: Record<string, {
   },
 }
 
+function fmtShares(n: bigint): string {
+  const total = 1_000_000n * BigInt(1e18)
+  const sold = total - n
+  const pct = sold > 0n ? `${Number((sold * 100n) / total)}%` : '0%'
+  return `${Number(sold / BigInt(1e18)).toLocaleString()} / 1,000,000 (${pct})`
+}
+
 export default async function AgentPage({ params }: { params: Promise<{ ticker: string }> }) {
   const { ticker } = await params
-  const agent = KNOWN_AGENTS[ticker.toUpperCase()] ?? KNOWN_AGENTS['WAGNT']
-  const inferences = await loadInferences(agent.tokenId).catch(() => [])
+  const upper = ticker.toUpperCase()
+
+  // Resolve agent: static dict first, then backend
+  let agent = KNOWN_AGENTS[upper]
+  if (!agent) {
+    const backendEntry = await getBackendAgent(upper).catch(() => null)
+    if (backendEntry) {
+      agent = {
+        ticker: upper,
+        tokenId: Number(backendEntry.tokenId),
+        ensName: `${upper.toLowerCase()}.wall.eth`,
+        owner: '',
+        description: backendEntry.description ?? backendEntry.name ?? upper,
+        model: backendEntry.model ?? '—',
+      }
+    } else {
+      agent = KNOWN_AGENTS['WAGNT']
+    }
+  }
+
+  // On-chain reads (parallel)
+  const [inferences, vault, nftOwner, factoryLaunch] = await Promise.all([
+    loadInferences(agent.tokenId).catch(() => []),
+    readVault(agent.tokenId).catch(() => null),
+    readNftOwner(agent.tokenId).catch(() => null),
+    readFactoryLaunch(agent.tokenId).catch(() => null),
+  ])
+
   const callsToday = inferences.filter(i => i.timestamp > Date.now() / 1000 - 86400).length
+
+  // Share supply — factory launch takes precedence, then fall back to fractionalizer vault
+  const activeShareToken = (factoryLaunch?.shareToken ?? vault?.shareToken) as Hex | undefined
+  let sharesSold = '—'
+  if (activeShareToken && activeShareToken !== '0x0000000000000000000000000000000000000000') {
+    const supply = await readShareTotalSupply(activeShareToken).catch(() => null)
+    if (supply !== null) sharesSold = fmtShares(supply)
+  }
+
+  const hasIpo = !!factoryLaunch?.ipo && factoryLaunch.ipo !== '0x0000000000000000000000000000000000000000'
+  const isRegistered = !!(vault?.active || factoryLaunch)
+  const resolvedOwner = nftOwner ?? agent.owner
 
   return (
     <>
@@ -30,6 +78,7 @@ export default async function AgentPage({ params }: { params: Promise<{ ticker: 
         <Link href="/" style={{ color: 'var(--mute)', textDecoration: 'none' }}>Markets</Link>
         <span>›</span>
         <span style={{ color: 'var(--fg)' }}>{agent.ticker}</span>
+        {isRegistered && <span className="pill ok" style={{ fontSize: 9, marginLeft: 'auto' }}>FRACTIONALIZED</span>}
       </div>
 
       {/* Agent Header */}
@@ -44,22 +93,35 @@ export default async function AgentPage({ params }: { params: Promise<{ ticker: 
           <p style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg-2)', maxWidth: 520, lineHeight: 1.6, margin: 0 }}>{agent.description}</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn primary">Buy Shares</button>
-          <button className="btn">Bid NFT</button>
+          {isRegistered ? (
+            <>
+              {hasIpo ? (
+                <BuySharesPanel ipoAddress={factoryLaunch!.ipo} ticker={agent.ticker} />
+              ) : (
+                <button className="btn primary" disabled style={{ opacity: 0.4, cursor: 'not-allowed' }} title="IPO not deployed">Buy Shares</button>
+              )}
+              <BidPanel tokenId={agent.tokenId} ticker={agent.ticker} />
+            </>
+          ) : (
+            <>
+              <button className="btn primary" disabled style={{ opacity: 0.4, cursor: 'not-allowed' }}>Buy Shares</button>
+              <button className="btn" disabled style={{ opacity: 0.4, cursor: 'not-allowed' }}>Bid NFT</button>
+            </>
+          )}
         </div>
       </div>
 
       {/* Stats strip */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 1, background: 'var(--hair)', margin: '24px 0' }}>
         {[
-          { label: 'Price / Share', value: '—', delta: 'USDC · Base Sepolia' },
-          { label: 'Shares Sold', value: '—', delta: '/ 1,000,000 total' },
-          { label: 'Vault Balance', value: '—', delta: 'pending distribution' },
+          { label: 'Shares Sold', value: sharesSold, delta: 'AgentShare ERC-20' },
+          { label: 'Vault Balance', value: '—', delta: 'pending 0G Vault' },
           { label: 'Calls Today', value: String(callsToday), delta: 'x402 inference' },
+          { label: 'Status', value: isRegistered ? 'LIVE' : 'NFT ONLY', delta: isRegistered ? 'fractionalized' : 'not yet listed' },
         ].map(s => (
           <div key={s.label} className="stat">
             <div className="label">{s.label}</div>
-            <div className="value">{s.value}</div>
+            <div className="value" style={{ color: s.label === 'Status' && isRegistered ? 'var(--accent)' : undefined }}>{s.value}</div>
             <div className="delta">{s.delta}</div>
           </div>
         ))}
@@ -105,26 +167,92 @@ export default async function AgentPage({ params }: { params: Promise<{ ticker: 
           <div className="panel" style={{ padding: 14 }}>
             <div className="kv">
               <span className="k">Network</span><span className="v">0G Galileo</span>
-              <span className="k">NFT Contract</span><span className="v" style={{ wordBreak: 'break-all', fontSize: 10 }}>0x4ce1D1…cceD84F1f</span>
-              <span className="k">Registry</span><span className="v" style={{ wordBreak: 'break-all', fontSize: 10 }}>0xE26bAF…321F67BAB</span>
-              <span className="k">Market</span><span className="v" style={{ wordBreak: 'break-all', fontSize: 10 }}>0x55D7Af…fe3f4045</span>
+              <span className="k">NFT Contract</span>
+              <span className="v" style={{ wordBreak: 'break-all', fontSize: 10 }}>
+                0x4ce1D1E0e9C769221E03e661abBf043cceD84F1f
+              </span>
               <span className="k">Token ID</span><span className="v">#{agent.tokenId}</span>
-              <span className="k">Owner</span><span className="v">{shortAddr(agent.owner)}</span>
-              <span className="k">Model</span><span className="v" style={{ fontSize: 10, wordBreak: 'break-all' }}>{agent.model}</span>
+              <span className="k">Owner</span>
+              <span className="v" style={{ wordBreak: 'break-all', fontSize: 10 }}>
+                {resolvedOwner ? shortAddr(resolvedOwner as `0x${string}`) : '—'}
+              </span>
+              <span className="k">Model</span>
+              <span className="v" style={{ fontSize: 10, wordBreak: 'break-all' }}>{agent.model}</span>
+              {activeShareToken && activeShareToken !== '0x0000000000000000000000000000000000000000' && (
+                <>
+                  <span className="k">AgentShare</span>
+                  <span className="v" style={{ wordBreak: 'break-all', fontSize: 10 }}>
+                    {shortAddr(activeShareToken)}
+                  </span>
+                  {(factoryLaunch?.creator ?? vault?.creator) && (
+                    <>
+                      <span className="k">Creator</span>
+                      <span className="v" style={{ wordBreak: 'break-all', fontSize: 10 }}>
+                        {shortAddr((factoryLaunch?.creator ?? vault?.creator) as Hex)}
+                      </span>
+                    </>
+                  )}
+                  {hasIpo && (
+                    <>
+                      <span className="k">IPO Contract</span>
+                      <span className="v" style={{ wordBreak: 'break-all', fontSize: 10 }}>
+                        {shortAddr(factoryLaunch!.ipo)}
+                      </span>
+                    </>
+                  )}
+                  {factoryLaunch?.vault && factoryLaunch.vault !== '0x0000000000000000000000000000000000000000' && (
+                    <>
+                      <span className="k">Revenue Vault</span>
+                      <span className="v" style={{ wordBreak: 'break-all', fontSize: 10 }}>
+                        {shortAddr(factoryLaunch.vault)}
+                      </span>
+                    </>
+                  )}
+                </>
+              )}
             </div>
           </div>
 
           <p className="section-h" style={{ marginTop: 20 }}>Explorer</p>
-          <div className="panel" style={{ padding: 14 }}>
+          <div className="panel" style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
             <a
               href={`https://chainscan-galileo.0g.ai/token/0x4ce1D1E0e9C769221E03e661abBf043cceD84F1f?a=${agent.tokenId}`}
-              target="_blank"
-              rel="noreferrer"
+              target="_blank" rel="noreferrer"
               style={{ color: 'var(--accent)', fontFamily: 'var(--font-mono)', fontSize: 11, textDecoration: 'none' }}
             >
               View NFT on 0G Explorer ↗
             </a>
+            {activeShareToken && activeShareToken !== '0x0000000000000000000000000000000000000000' && (
+              <a
+                href={`https://chainscan-galileo.0g.ai/token/${activeShareToken}`}
+                target="_blank" rel="noreferrer"
+                style={{ color: 'var(--accent)', fontFamily: 'var(--font-mono)', fontSize: 11, textDecoration: 'none' }}
+              >
+                View AgentShare on 0G Explorer ↗
+              </a>
+            )}
+            {hasIpo && (
+              <a
+                href={`https://chainscan-galileo.0g.ai/address/${factoryLaunch!.ipo}`}
+                target="_blank" rel="noreferrer"
+                style={{ color: 'var(--accent)', fontFamily: 'var(--font-mono)', fontSize: 11, textDecoration: 'none' }}
+              >
+                View IPO Contract ↗
+              </a>
+            )}
           </div>
+
+          {!isRegistered && (
+            <>
+              <p className="section-h" style={{ marginTop: 20 }}>Listing</p>
+              <div className="panel" style={{ padding: 14 }}>
+                <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--mute)', lineHeight: 1.6, margin: 0 }}>
+                  This agent has not been fractionalized yet. The owner can fractionalize it from the{' '}
+                  <Link href="/launch" style={{ color: 'var(--accent)' }}>Deploy page</Link>.
+                </p>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </>

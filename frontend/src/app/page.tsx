@@ -23,7 +23,7 @@ export default async function MarketsPage() {
                 <button className="btn primary">View WAGNT ▸</button>
               </Link>
               <Link href="/launch">
-                <button className="btn">List Agent</button>
+                <button className="btn">Deploy Agent</button>
               </Link>
             </div>
           </div>

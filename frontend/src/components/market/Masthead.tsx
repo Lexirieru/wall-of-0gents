@@ -8,7 +8,7 @@ import { gsap } from 'gsap'
 
 const NAV = [
   { href: '/', label: 'markets', match: (p: string) => p === '/' || p.startsWith('/agent') },
-  { href: '/launch', label: 'list-agent', match: (p: string) => p.startsWith('/launch') },
+  { href: '/launch', label: 'deploy', match: (p: string) => p.startsWith('/launch') },
   { href: '/portfolio', label: 'portfolio', match: (p: string) => p.startsWith('/portfolio') },
 ]
 

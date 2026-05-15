@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 import { Masthead } from '@/components/market/Masthead'
 import { TickerTape } from '@/components/market/TickerTape'
-import { SystemBar } from '@/components/market/SystemBar'
 import { Providers } from '@/components/providers/Web3Provider'
 import './globals.css'
 
@@ -18,9 +17,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <div className="scan" aria-hidden />
         <Providers>
           <Masthead />
-          <TickerTape />
           <main className="page" style={{ paddingBottom: 48 }}>{children}</main>
-          <SystemBar />
+          <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 200 }}>
+            <TickerTape />
+          </div>
         </Providers>
       </body>
     </html>
