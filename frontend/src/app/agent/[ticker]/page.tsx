@@ -1,7 +1,8 @@
 import Link from 'next/link'
-import { loadInferences, readVault, readNftOwner, readShareTotalSupply, readFactoryLaunch, getBackendAgent } from '@/lib/agents'
+import { loadInferences, readVault, readNftOwner, readFactoryLaunch, readIpoInfo, getBackendAgent } from '@/lib/agents'
 import { shortAddr } from '@/lib/format'
 import { AgentTabs } from '@/components/market/AgentTabs'
+import { CallsToday } from '@/components/market/CallsToday'
 import type { Hex } from 'viem'
 
 export const revalidate = 30
@@ -18,12 +19,6 @@ const KNOWN_AGENTS: Record<string, {
   },
 }
 
-function fmtShares(n: bigint): string {
-  const total = 1_000_000n * 10n ** 18n
-  const sold = total - n
-  const pct = sold > 0n ? `${Number((sold * 100n) / total)}%` : '0%'
-  return `${Number(sold / 10n ** 18n).toLocaleString()} / 1,000,000 (${pct})`
-}
 
 export default async function AgentPage({ params }: { params: Promise<{ ticker: string }> }) {
   const { ticker } = await params
@@ -53,16 +48,21 @@ export default async function AgentPage({ params }: { params: Promise<{ ticker: 
     readFactoryLaunch(agent.tokenId).catch(() => null),
   ])
 
-  const callsToday = inferences.filter(i => i.timestamp > Date.now() / 1000 - 86400).length
-
-  const activeShareToken = (factoryLaunch?.shareToken ?? vault?.shareToken) as Hex | undefined
-  let sharesSold = '—'
-  if (activeShareToken && activeShareToken !== '0x0000000000000000000000000000000000000000') {
-    const supply = await readShareTotalSupply(activeShareToken).catch(() => null)
-    if (supply !== null) sharesSold = fmtShares(supply)
-  }
-
   const hasIpo = !!factoryLaunch?.ipo && factoryLaunch.ipo !== '0x0000000000000000000000000000000000000000'
+
+  // Read IPO sold count — source of truth for shares sold (pre-minted totalSupply is always 1M)
+  let sharesSold = '—'
+  if (hasIpo) {
+    const ipoInfo = await readIpoInfo(factoryLaunch!.ipo).catch(() => null)
+    if (ipoInfo) {
+      const sold = Number(ipoInfo.sold / 10n ** 18n).toLocaleString()
+      const max = Number(ipoInfo.maxShares / 10n ** 18n).toLocaleString()
+      const pct = ipoInfo.maxShares > 0n
+        ? Math.round(Number(ipoInfo.sold * 100n / ipoInfo.maxShares))
+        : 0
+      sharesSold = `${sold} / ${max} (${pct}%)`
+    }
+  }
   const isRegistered = !!(vault?.active || factoryLaunch)
   const resolvedOwner = nftOwner ?? agent.owner
 
@@ -89,18 +89,24 @@ export default async function AgentPage({ params }: { params: Promise<{ ticker: 
 
       {/* Stats strip */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 1, background: 'var(--hair)', margin: '24px 0' }}>
-        {[
-          { label: 'Shares Sold', value: sharesSold, delta: 'AgentShare ERC-20' },
-          { label: 'Vault Balance', value: '—', delta: 'pending 0G Vault' },
-          { label: 'Calls Today', value: String(callsToday), delta: 'x402 inference' },
-          { label: 'Status', value: isRegistered ? 'LIVE' : 'NFT ONLY', delta: isRegistered ? 'fractionalized' : 'not yet listed' },
-        ].map(s => (
-          <div key={s.label} className="stat">
-            <div className="label">{s.label}</div>
-            <div className="value" style={{ color: s.label === 'Status' && isRegistered ? 'var(--accent)' : undefined }}>{s.value}</div>
-            <div className="delta">{s.delta}</div>
+        <div className="stat">
+          <div className="label">Shares Sold</div>
+          <div className="value">{sharesSold}</div>
+          <div className="delta">AgentShare ERC-20</div>
+        </div>
+        <div className="stat">
+          <div className="label">Vault Balance</div>
+          <div className="value">—</div>
+          <div className="delta">pending 0G Vault</div>
+        </div>
+        <CallsToday tokenId={agent.tokenId} />
+        <div className="stat">
+          <div className="label">Status</div>
+          <div className="value" style={{ color: isRegistered ? 'var(--accent)' : undefined }}>
+            {isRegistered ? 'LIVE' : 'NFT ONLY'}
           </div>
-        ))}
+          <div className="delta">{isRegistered ? 'fractionalized' : 'not yet listed'}</div>
+        </div>
       </div>
 
       {/* Main content */}
