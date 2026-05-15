@@ -260,12 +260,12 @@ function BuyTab({ ipoAddress, ticker }: { ipoAddress: Hex; ticker: string }) {
     fetchStats()
   }, [ipoAddress])
 
-  const sharesAmount = BigInt(Math.max(0, Math.floor(Number(shares) || 0))) * BigInt(1e18)
-  const usdcCost = stats ? (sharesAmount * stats.pricePerShare) / BigInt(1e18) : 0n
+  const sharesAmount = BigInt(Math.max(0, Math.floor(Number(shares) || 0))) * 10n ** 18n
+  const usdcCost = stats ? (sharesAmount * stats.pricePerShare) / 10n ** 18n : 0n
   const priceUsd = stats ? (Number(stats.pricePerShare) / 1e6).toFixed(4) : '...'
   const costUsd = (Number(usdcCost) / 1e6).toFixed(2)
-  const availableShares = stats ? Number(stats.available / BigInt(1e18)).toLocaleString() : '...'
-  const maxShares = stats ? Number(stats.maxShares / BigInt(1e18)).toLocaleString() : '...'
+  const availableShares = stats ? Number(stats.available / 10n ** 18n).toLocaleString() : '...'
+  const maxShares = stats ? Number(stats.maxShares / 10n ** 18n).toLocaleString() : '...'
   const pctSold = stats
     ? Math.round((Number(stats.maxShares - stats.available) / Number(stats.maxShares)) * 100)
     : null

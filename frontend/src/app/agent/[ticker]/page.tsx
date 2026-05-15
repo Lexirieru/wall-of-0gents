@@ -19,10 +19,10 @@ const KNOWN_AGENTS: Record<string, {
 }
 
 function fmtShares(n: bigint): string {
-  const total = 1_000_000n * BigInt(1e18)
+  const total = 1_000_000n * 10n ** 18n
   const sold = total - n
   const pct = sold > 0n ? `${Number((sold * 100n) / total)}%` : '0%'
-  return `${Number(sold / BigInt(1e18)).toLocaleString()} / 1,000,000 (${pct})`
+  return `${Number(sold / 10n ** 18n).toLocaleString()} / 1,000,000 (${pct})`
 }
 
 export default async function AgentPage({ params }: { params: Promise<{ ticker: string }> }) {
