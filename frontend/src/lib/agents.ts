@@ -1,6 +1,7 @@
 import { zgPublicClient } from './chain'
 import { CONTRACTS, wallFractionalizerAbi, wallLaunchFactoryAbi, wallIPOPushAbi, erc20Abi } from './abis'
 import type { Hex } from 'viem'
+import { sha256, toBytes } from 'viem'
 
 const OPERATOR_URL = process.env.NEXT_PUBLIC_OPERATOR_URL ?? 'http://127.0.0.1:8402'
 
@@ -339,7 +340,7 @@ export async function readIpoInfo(ipoAddress: Hex): Promise<IpoInfo | null> {
   }
 }
 
-export async function registerAgentInBackend(entry: {
+export type RegisterEntry = {
   tokenId: string
   ticker: string
   name: string
@@ -350,12 +351,39 @@ export async function registerAgentInBackend(entry: {
   runtime: string
   shareToken?: string
   operatorUrl?: string
-}): Promise<{ ok: boolean; error?: string }> {
+}
+
+/**
+ * sha256 (hex, no 0x) over the mutable payload — MUST byte-match backend
+ * `registerPayloadHash`. Binds the signature to the exact agent config so a
+ * captured signature can't be replayed with swapped fields (C1).
+ */
+export function registerPayloadHash(e: RegisterEntry): string {
+  const canonical =
+    `name=${e.name ?? ''}|description=${e.description ?? ''}|systemPrompt=${e.systemPrompt ?? ''}` +
+    `|model=${e.model ?? ''}|priceUsdc=${e.priceUsdc ?? ''}|runtime=${e.runtime ?? ''}` +
+    `|shareToken=${e.shareToken ?? ''}|operatorUrl=${e.operatorUrl ?? ''}`
+  return sha256(toBytes(canonical)).slice(2)
+}
+
+/**
+ * Canonical message the backend expects, signed by the NFT owner / registered
+ * operator. MUST match backend `registerMessage` exactly: ticker uppercased,
+ * `ts` in ms, literal `\n`, payload hash bound.
+ */
+export function buildRegisterMessage(tokenId: string, ticker: string, ts: number, entry: RegisterEntry): string {
+  return `Wall of 0gents :: register agent\ntokenId=${tokenId}\nticker=${ticker.toUpperCase()}\nts=${ts}\npayload=${registerPayloadHash(entry)}`
+}
+
+export async function registerAgentInBackend(
+  entry: RegisterEntry,
+  auth: { owner: string; ts: number; signature: string },
+): Promise<{ ok: boolean; error?: string }> {
   try {
     const res = await fetch(`${OPERATOR_URL}/agents/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(entry),
+      body: JSON.stringify({ ...entry, owner: auth.owner, ts: auth.ts, signature: auth.signature }),
     })
     const data = await res.json()
     if (!res.ok) return { ok: false, error: (data as { error?: string }).error ?? 'register failed' }

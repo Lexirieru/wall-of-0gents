@@ -2,12 +2,12 @@
 import Link from 'next/link'
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import gsap from 'gsap'
-import { useAccount, useChainId, useConnect, useWriteContract, useSwitchChain } from 'wagmi'
+import { useAccount, useChainId, useConnect, useWriteContract, useSwitchChain, useSignMessage } from 'wagmi'
 import { injected } from 'wagmi/connectors'
 import { keccak256, toHex, decodeEventLog, encodeAbiParameters, http, createPublicClient } from 'viem'
 import { zgGalileo } from '@/components/providers/Web3Provider'
 import { CONTRACTS, wallAgentNftAbi, wallLaunchFactoryAbi } from '@/lib/abis'
-import { registerAgentInBackend } from '@/lib/agents'
+import { registerAgentInBackend, buildRegisterMessage, type RegisterEntry } from '@/lib/agents'
 
 const AGENT_NFT = CONTRACTS.agentNft
 const FACTORY   = CONTRACTS.factory
@@ -1035,6 +1035,7 @@ function ListStep({
 }) {
   const { address } = useAccount()
   const { writeContractAsync } = useWriteContract()
+  const { signMessageAsync } = useSignMessage()
 
   const [launchState, setLaunchState] = useState<'idle' | 'busy' | 'done' | 'error'>('idle')
   const [launchLogs, setLaunchLogs] = useState<string[]>([])
@@ -1122,11 +1123,16 @@ function ListStep({
 
   const handleListOnExchange = async () => {
     setListState('busy'); setListErr('')
+    if (!address) { setListErr('connect wallet to sign registration'); setListState('error'); return }
+    if (!tokenId || tokenId === '?') { setListErr('invalid tokenId'); setListState('error'); return }
+
     const parsedPrice = parseFloat(price)
     const priceUsdc = price && Number.isFinite(parsedPrice) && parsedPrice > 0
       ? String(Math.round(parsedPrice * 1_000_000))
       : '100000'
-    const result = await registerAgentInBackend({
+
+    // Build the exact entry first so the signature binds it (C1).
+    const entry: RegisterEntry = {
       tokenId,
       ticker: ticker.toUpperCase(),
       name: `${ticker.toUpperCase()} Agent`,
@@ -1137,7 +1143,21 @@ function ListStep({
       runtime: '0g-ai',
       shareToken: shareToken || undefined,
       operatorUrl: operatorUrl || undefined,
-    })
+    }
+
+    let auth: { owner: string; ts: number; signature: string }
+    try {
+      const ts = Date.now() // ms — backend window check uses Date.now()
+      const message = buildRegisterMessage(tokenId, ticker, ts, entry)
+      const signature = await signMessageAsync({ message })
+      auth = { owner: address, ts, signature }
+    } catch (e) {
+      setListErr(e instanceof Error ? e.message : 'signature rejected')
+      setListState('error')
+      return
+    }
+
+    const result = await registerAgentInBackend(entry, auth)
 
     if (result.ok) {
       setListState('done')

@@ -7,7 +7,7 @@ export const CONTRACTS = {
   registry:       '0xE26bAFF16B7c6119A05a3D65cf499DE321F67BAB' as Hex,
   market:         '0x55D7Af35752065C381Af13a5DcDA86e5Fe3f4045' as Hex,
   mockUsdc:       '0x0d837aD954F4f9F06E303A86150ad0F322Ec5EB1' as Hex,
-  factory:        '0x61638a3bb5449F6dB92EB9B81d858c96cb09Bf21' as Hex,
+  factory:        '0xE370EeAf593B1c0F0a3cc22df0D3b712c4DC5817' as Hex,
 } as const
 
 // ─── WallAgentNFT ──────────────────────────────────────────────────────────

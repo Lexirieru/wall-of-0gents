@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { useAccount, useWriteContract, usePublicClient } from 'wagmi'
+import { useAccount, useWriteContract, usePublicClient, useChainId, useSwitchChain } from 'wagmi'
 import { formatUnits } from 'viem'
 import { erc20Abi } from '@/lib/abis'
 
@@ -10,6 +10,7 @@ type X402Challenge = {
   asset: `0x${string}`
   recipient: `0x${string}`
   minAmount: string
+  chainId: number
 }
 
 type Props = { tokenId: number; ticker: string }
@@ -18,6 +19,8 @@ export function InferenceBox({ tokenId, ticker }: Props) {
   const { address } = useAccount()
   const client = usePublicClient()
   const { writeContractAsync } = useWriteContract()
+  const chainId = useChainId()
+  const { switchChainAsync } = useSwitchChain()
 
   const [prompt, setPrompt] = useState('')
   const [output, setOutput] = useState('')
@@ -56,6 +59,18 @@ export function InferenceBox({ tokenId, ticker }: Props) {
       const recipient = challenge.recipient
       const displayAmount = formatUnits(minAmount, 6)
 
+      // 1b. Enforce the payment chain BEFORE reading balance or transferring —
+      // otherwise funds could be sent on the wrong chain to a 0G address.
+      if (chainId !== challenge.chainId) {
+        setStatus(`Switching to chain ${challenge.chainId}…`)
+        try {
+          await switchChainAsync({ chainId: challenge.chainId })
+        } catch {
+          setError(`Wrong network. Switch your wallet to chain ${challenge.chainId} (0G Galileo) and retry.`)
+          return
+        }
+      }
+
       // 2. Check USDC balance
       setStatus('Checking USDC balance…')
       const balance = await client.readContract({
@@ -79,6 +94,7 @@ export function InferenceBox({ tokenId, ticker }: Props) {
         abi: erc20Abi,
         functionName: 'transfer',
         args: [recipient, minAmount],
+        chainId: challenge.chainId,
       })
 
       // 4. Wait for on-chain confirmation
