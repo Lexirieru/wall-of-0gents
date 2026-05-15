@@ -1,0 +1,38 @@
+@use '../../styles/utils' as *;
+
+.info {
+  display: none;
+  padding: var(--60) var(--16);
+  background: var(--c-black);
+  color: var(--c-white);
+
+  @include mobile {
+    display: block;
+  }
+}
+
+.title {
+  margin-bottom: var(--32);
+}
+
+.item {
+  padding: var(--16);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 1rem;
+  margin-bottom: var(--16);
+}
+
+.itemTitle {
+  margin-bottom: var(--16);
+}
+
+.itemList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.itemList li {
+  padding: var(--8) 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}

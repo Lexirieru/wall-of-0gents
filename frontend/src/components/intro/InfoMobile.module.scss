@@ -1,0 +1,35 @@
+@use '../../styles/utils' as *;
+
+.infoMob {
+  display: none;
+  position: relative;
+
+  @include mobile {
+    display: block;
+    background: var(--c-black);
+    color: var(--c-white);
+    padding-top: var(--60);
+  }
+}
+
+.wrap {
+  padding: var(--32) var(--16);
+}
+
+.title {
+  margin-bottom: var(--32);
+}
+
+.description {
+  padding: 0 var(--16) var(--32);
+}
+
+.cube {
+  padding: var(--32) var(--16);
+  text-align: center;
+}
+
+.vision {
+  padding: var(--32) var(--16);
+  text-align: center;
+}

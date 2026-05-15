@@ -1,0 +1,52 @@
+@use '../../styles/utils' as *;
+
+.btnInner {
+  width: 100%;
+  padding: var(--2) var(--8) var(--4);
+  box-shadow: -0.1rem -0.2rem 0.35rem 0rem rgba(0, 0, 0, 0.1) inset;
+  transition: all 0.3s var(--default-ease);
+  display: block;
+  background: var(--c-white);
+  position: relative;
+  box-sizing: border-box;
+  min-height: 1.25rem;
+
+  @include mobile {
+    padding: 0.5rem 1rem 0.625rem;
+    box-shadow:
+      0.125rem 0.125rem 0.5563rem 0 rgba(255, 255, 255, 0.33) inset,
+      -0.0625rem -0.125rem 0.1875rem 0 rgba(0, 0, 0, 0.21) inset;
+  }
+}
+
+.btnInner:after {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  width: 100%;
+  background: var(--c-red);
+  height: var(--2);
+  opacity: 0;
+  transition: all 0.3s var(--default-ease);
+}
+
+.bottom:after {
+  bottom: auto;
+  top: 100%;
+}
+
+.active {
+  background: #ddd;
+  box-shadow: 0.0625rem 0.125rem 0.185rem 0rem rgba(0, 0, 0, 0.23) inset;
+}
+
+.active:after {
+  opacity: 1;
+}
+
+@include hover {
+  .btnInner:hover:after {
+    opacity: 1;
+  }
+}

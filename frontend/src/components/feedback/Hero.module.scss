@@ -1,0 +1,15 @@
+@use '../../styles/utils' as *;
+
+.hero {
+  padding: var(--128) var(--8) var(--72);
+  text-align: center;
+  color: var(--c-white);
+
+  @include mobile {
+    padding: var(--60) var(--16) var(--32);
+  }
+}
+
+.title {
+  margin-bottom: var(--24);
+}

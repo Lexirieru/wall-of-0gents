@@ -1,0 +1,39 @@
+.iconFill {
+  --self-color: var(--icon-color, var(--c-black));
+  width: 100%;
+  height: auto;
+
+  path {
+    fill: var(--self-color);
+  }
+}
+
+.iconStroke {
+  --self-color: var(--icon-color, var(--c-black));
+  width: 100%;
+  height: auto;
+
+  path {
+    stroke: var(--self-color);
+  }
+}
+
+.iconFillRed {
+  --self-color: var(--icon-color, var(--c-red));
+  width: 100%;
+  height: auto;
+
+  path {
+    fill: var(--self-color);
+  }
+}
+
+.iconFillWhite {
+  --self-color: var(--icon-color, var(--c-white));
+  width: 0.5rem;
+  height: auto;
+
+  path {
+    fill: var(--self-color);
+  }
+}

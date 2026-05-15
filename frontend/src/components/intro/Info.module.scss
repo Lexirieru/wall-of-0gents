@@ -1,0 +1,90 @@
+@use '../../styles/utils' as *;
+
+.info {
+  padding: 2.25rem 0 0;
+  width: 100%;
+  background: #000 !important;
+  color: var(--c-white);
+
+  @include mobile {
+    display: none;
+  }
+}
+
+.wrap {
+  position: relative;
+  padding-left: var(--8);
+  padding-right: var(--8);
+}
+
+.title {
+  margin-bottom: var(--128);
+}
+
+.titleRow {
+  display: flex;
+  justify-content: space-between;
+}
+
+.titleWord {
+  overflow: hidden;
+  margin-bottom: -2rem;
+}
+
+.titleMask {
+  display: block;
+  padding-bottom: 2rem;
+  padding-top: 0.125rem;
+}
+
+.cubeWrap {
+  background: var(--c-white);
+  color: var(--c-black);
+}
+
+.cubeText {
+  margin-left: 50%;
+  width: 17.1875rem;
+  padding-top: 6.875rem;
+}
+
+.cube {
+  height: 100vh;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-left: calc(50% - 50vw);
+  padding: 0 var(--8);
+}
+
+.vision {
+  position: relative;
+  padding-bottom: 55vh;
+  background: var(--c-white);
+  color: var(--c-black);
+}
+
+.title2 {
+  width: 56.4375rem;
+  margin-left: auto;
+  margin-right: 3.25rem;
+  letter-spacing: -0.0656rem;
+  mix-blend-mode: difference;
+  color: var(--c-grey);
+  position: relative;
+  z-index: 2;
+}
+
+.description2 {
+  width: 18.6875rem;
+  margin-left: auto;
+  margin-right: 7.1875rem;
+  margin-top: 10.0625rem;
+  color: var(--c-black);
+}
+
+.btnWrap {
+  margin-top: 8rem;
+  display: flex;
+  justify-content: center;
+}

@@ -1,0 +1,41 @@
+@use "../../styles/utils" as *;
+
+.textareaWrap {
+  position: relative;
+  width: 100%;
+}
+
+.textarea {
+  width: 100%;
+  color: var(--c-black);
+  font-family: var(--f-peta-med);
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  font-size: 1.25rem;
+  line-height: 190%;
+  letter-spacing: -0.055rem;
+  height: 10rem;
+  resize: none;
+
+  @include mobile {
+    font-size: 0.9375rem;
+    letter-spacing: -0.0413rem;
+    line-height: 250%;
+  }
+}
+
+.textarea::placeholder {
+  color: var(--c-black);
+  font-family: var(--f-peta-med);
+  opacity: 0.3;
+}
+
+.lines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}

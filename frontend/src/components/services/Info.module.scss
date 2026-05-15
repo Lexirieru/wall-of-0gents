@@ -1,0 +1,42 @@
+@use '../../styles/utils' as *;
+
+.info {
+  padding: var(--128) var(--8);
+  background: var(--c-black);
+  color: var(--c-white);
+
+  @include mobile {
+    display: none;
+  }
+}
+
+.title {
+  margin-bottom: var(--72);
+}
+
+.list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--32);
+}
+
+.item {
+  padding: var(--32);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 1rem;
+}
+
+.itemTitle {
+  margin-bottom: var(--24);
+}
+
+.itemList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.itemList li {
+  padding: var(--12) 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}

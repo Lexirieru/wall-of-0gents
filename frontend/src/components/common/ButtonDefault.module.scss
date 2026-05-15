@@ -1,0 +1,71 @@
+@use '../../styles/utils' as *;
+
+.btnDefault {
+  width: 29.625rem;
+  height: 4.5rem;
+  border-radius: 2.8125rem;
+  background: linear-gradient(180deg, #fbfbfb 100%, #e4e4e4 0%);
+  color: var(--c-black);
+
+  box-shadow:
+    0px 0.25rem 0.34rem 0px rgba(0, 0, 0, 0.15),
+    0px 0.18rem 0.41rem 0px rgba(0, 0, 0, 0.25),
+    0px 1.62rem 1.6rem 0px #fff inset,
+    -0.125rem 0.25rem 0.3rem 0px #fff inset,
+    0.125rem 0.125rem 0.3rem 0px #fff inset,
+    0px -0.18rem 0.18rem 0px #d3d3d3 inset,
+    0px 0.18rem 0.18rem 0px #fff inset;
+  transition: all 0.1s var(--default-ease);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  box-sizing: border-box;
+
+  @include mobile {
+    width: 21.5rem;
+  }
+}
+
+.small {
+  padding-left: var(--32);
+  padding-right: var(--32);
+  text-align: center;
+  height: 3rem;
+}
+
+.active {
+  background: linear-gradient(
+    180deg,
+    #e4e4e4 0%,
+    #d6d6d6 17.6%,
+    #d3d3d3 32.6%,
+    #fbfbfb 100%
+  );
+
+  box-shadow:
+    0px 0.25rem 0.34rem 0px rgba(0, 0, 0, 0.15),
+    0px 0.18rem 0.4rem 0px rgba(0, 0, 0, 0.25),
+    -0.125rem 0.25rem 0.31rem 0px #fff inset,
+    0px -0.18rem 0.18rem 0px #d3d3d3 inset,
+    0px 0.18rem 0.18rem 0px #fff inset;
+}
+
+@include hover {
+  .btnDefault:hover {
+    background: linear-gradient(
+      180deg,
+      #e4e4e4 0%,
+      #d6d6d6 17.6%,
+      #d3d3d3 32.6%,
+      #fbfbfb 100%
+    );
+
+    box-shadow:
+      0px 0.25rem 0.34rem 0px rgba(0, 0, 0, 0.15),
+      0px 0.18rem 0.4rem 0px rgba(0, 0, 0, 0.25),
+      -0.125rem 0.25rem 0.31rem 0px #fff inset,
+      0px -0.18rem 0.18rem 0px #d3d3d3 inset,
+      0px 0.18rem 0.18rem 0px #fff inset;
+  }
+}

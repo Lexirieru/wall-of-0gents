@@ -1,0 +1,27 @@
+@use '../../styles/utils' as *;
+
+.details {
+  display: none;
+  padding: var(--60) var(--16);
+  background: var(--c-white);
+  color: var(--c-black);
+
+  @include mobile {
+    display: block;
+  }
+}
+
+.title {
+  margin-bottom: var(--32);
+}
+
+.card {
+  padding: var(--16);
+  background: #f5f5f5;
+  border-radius: 0.75rem;
+  margin-bottom: var(--16);
+}
+
+.cardTitle {
+  margin-bottom: var(--8);
+}

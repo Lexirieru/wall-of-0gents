@@ -1,0 +1,28 @@
+@use '../../styles/utils' as *;
+
+.monopoly {
+  display: none;
+  padding: var(--60) var(--16);
+  background: var(--c-black);
+  color: var(--c-white);
+  position: relative;
+  overflow: hidden;
+
+  @include mobile {
+    display: block;
+  }
+}
+
+.title {
+  margin-bottom: var(--16);
+  text-align: center;
+}
+
+.description {
+  text-align: center;
+}
+
+.logo {
+  width: 10rem;
+  margin: var(--32) auto 0;
+}

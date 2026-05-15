@@ -1,0 +1,19 @@
+@use '../../styles/utils' as *;
+
+.close svg {
+  width: 1rem;
+  height: auto;
+  display: block;
+
+  @include mobile {
+    width: 1.5rem;
+  }
+}
+
+.close {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: var(--c-black);
+  cursor: pointer;
+}

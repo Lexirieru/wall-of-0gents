@@ -1,0 +1,75 @@
+@use '../../styles/utils' as *;
+
+.item {
+  width: 29.3125rem;
+  height: auto;
+  background: var(--c-white);
+  cursor: grab;
+  user-select: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  box-shadow: 0px 0.1875rem 0.25rem 0px rgba(0, 0, 0, 0.14);
+  padding: var(--16) var(--16) var(--24);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+
+  @include mobile {
+    position: relative;
+    width: 100%;
+    top: 0;
+  }
+}
+
+.count {
+  position: absolute;
+  top: var(--16);
+  right: var(--16);
+}
+
+.title {
+  position: absolute;
+  top: var(--16);
+  left: var(--16);
+}
+
+.photo {
+  width: 5rem;
+  aspect-ratio: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.innerImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.name {
+  margin-top: var(--8);
+}
+
+.spec {
+  // intentionally empty — inherits p4 from global
+}
+
+.socials {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--8);
+  margin-top: var(--32);
+}
+
+.socials img {
+  width: 2.875rem;
+}
+
+.description {
+  margin-top: auto;
+  padding-left: 0.8125rem;
+  padding-right: 0.8125rem;
+}

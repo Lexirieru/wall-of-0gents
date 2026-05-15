@@ -1,0 +1,70 @@
+@use "../../styles/utils" as *;
+
+.facts {
+  position: relative;
+  margin-top: var(--152);
+  height: 20.625rem;
+
+  @include mobile {
+    display: none;
+  }
+}
+
+.items {
+  height: 100%;
+  position: relative;
+}
+
+.item {
+  opacity: 0;
+  position: absolute;
+  width: 100%;
+  top: 0;
+  left: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding-left: var(--8);
+}
+
+.logo {
+  position: absolute;
+  top: 0;
+  left: 25.125rem;
+  width: 8.8125rem;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.info p {
+  width: 17rem;
+  line-height: 1.3;
+}
+
+.pagination {
+  position: absolute;
+  top: 0;
+  right: var(--8);
+}
+
+.navigation {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  z-index: 3;
+  cursor: pointer;
+}
+
+.number {
+  white-space: nowrap;
+}
+
+.paginationItems {
+  display: inline-flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.paginationNumber {
+  display: block;
+}

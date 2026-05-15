@@ -1,0 +1,9 @@
+.canvas {
+  display: block;
+  cursor: grab;
+}
+
+.canvas._drag,
+.canvas:global(._drag) {
+  cursor: grabbing;
+}

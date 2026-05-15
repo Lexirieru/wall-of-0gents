@@ -1,0 +1,14 @@
+.fixedLogo {
+  padding: var(--32);
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  transform-origin: bottom;
+  z-index: 9500;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.fixedLogo svg {
+  width: 8rem;
+}

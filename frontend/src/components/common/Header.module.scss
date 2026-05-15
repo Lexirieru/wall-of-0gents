@@ -1,0 +1,27 @@
+@use '../../styles/utils' as *;
+
+.header {
+  display: flex;
+  justify-content: space-around;
+  gap: var(--8);
+  padding-top: var(--2);
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: var(--z-header);
+}
+
+.linkTemplate {
+  display: flex;
+  justify-content: space-between;
+}
+
+.link {
+  flex: 1;
+  transition: all 0.3s var(--default-ease);
+}
+
+.active {
+  flex: 2.75;
+}

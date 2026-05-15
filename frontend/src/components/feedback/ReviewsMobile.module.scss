@@ -1,0 +1,26 @@
+@use '../../styles/utils' as *;
+
+.reviews {
+  display: none;
+  padding: 0 var(--16) var(--60);
+  color: var(--c-white);
+
+  @include mobile {
+    display: block;
+  }
+}
+
+.card {
+  padding: var(--16);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 1rem;
+  margin-bottom: var(--16);
+}
+
+.author {
+  margin-top: var(--12);
+}
+
+.role {
+  opacity: 0.6;
+}

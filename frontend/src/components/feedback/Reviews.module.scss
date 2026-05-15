@@ -1,0 +1,27 @@
+@use '../../styles/utils' as *;
+
+.reviews {
+  padding: 0 var(--8) var(--128);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--32);
+  color: var(--c-white);
+
+  @include mobile {
+    display: none;
+  }
+}
+
+.card {
+  padding: var(--32);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 1rem;
+}
+
+.author {
+  margin-top: var(--16);
+}
+
+.role {
+  opacity: 0.6;
+}

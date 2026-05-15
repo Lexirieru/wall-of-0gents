@@ -1,0 +1,32 @@
+@use '../../styles/utils' as *;
+
+.info {
+  padding: var(--128) var(--8);
+  background: var(--c-white);
+  color: var(--c-black);
+  text-align: center;
+
+  @include mobile {
+    display: none;
+  }
+}
+
+.title {
+  margin-bottom: var(--32);
+}
+
+.subtitle {
+  max-width: 38rem;
+  margin: 0 auto var(--48);
+}
+
+.contactInfo {
+  display: flex;
+  justify-content: center;
+  gap: var(--48);
+  margin-bottom: var(--48);
+}
+
+.btn {
+  display: inline-flex;
+}

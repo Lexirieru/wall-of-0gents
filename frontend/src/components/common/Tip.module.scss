@@ -1,0 +1,29 @@
+@use "../../styles/utils" as *;
+
+.tip {
+  pointer-events: none;
+  display: inline-flex;
+  padding: var(--2) var(--8) var(--4);
+  border-radius: 2.25rem;
+  background: #efe81b;
+  position: fixed;
+  top: -1.5rem;
+  left: 0;
+  z-index: var(--z-tip);
+
+  @include mobile {
+    display: none;
+  }
+}
+
+.tip:global(._red) {
+  background: var(--c-red);
+  color: var(--c-white);
+}
+
+.coin {
+  pointer-events: none;
+  position: absolute;
+  left: -2rem;
+  top: 0.3125rem;
+}

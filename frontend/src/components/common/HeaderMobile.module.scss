@@ -1,0 +1,45 @@
+@use '../../styles/utils' as *;
+
+.headerMob {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: var(--z-header);
+}
+
+.btnTemplate {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.headerBtn,
+.name {
+  position: absolute;
+  top: 0;
+}
+
+.headerBtn {
+  width: 49%;
+}
+
+.menuBtn {
+  left: 0;
+}
+
+.contactBtn {
+  right: 0;
+}
+
+.name {
+  left: 50%;
+  transform: translateX(-50%) scale(0);
+  pointer-events: none;
+  width: 6.875rem;
+  top: 0.3rem;
+}
+
+.name svg {
+  width: 100%;
+}

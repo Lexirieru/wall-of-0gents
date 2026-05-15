@@ -1,0 +1,35 @@
+@use "../../styles/utils" as *;
+
+.factsMob {
+  position: relative;
+  display: none;
+  background: var(--c-black);
+  color: var(--c-white);
+  padding: 4rem 0;
+
+  @include mobile {
+    display: block;
+  }
+}
+
+.logo {
+  position: absolute;
+  width: 5.1875rem;
+  top: 2rem;
+  right: 4rem;
+  z-index: 2;
+}
+
+.factsSwiper {
+  text-align: center;
+}
+
+.number {
+  color: var(--c-red);
+}
+
+.info {
+  width: 16.125rem;
+  margin: 1rem auto 0;
+  color: var(--c-white);
+}

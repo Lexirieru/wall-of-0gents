@@ -1,0 +1,36 @@
+@use '../../styles/utils' as *;
+
+.details {
+  padding: var(--128) var(--8);
+  background: var(--c-white);
+  color: var(--c-black);
+
+  @include mobile {
+    display: none;
+  }
+}
+
+.title {
+  margin-bottom: var(--72);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: var(--32);
+}
+
+.card {
+  padding: var(--24);
+  background: #f5f5f5;
+  border-radius: 0.75rem;
+}
+
+.cardTitle {
+  margin-bottom: var(--16);
+}
+
+.description {
+  margin-top: var(--48);
+  max-width: 38rem;
+}

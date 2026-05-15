@@ -1,0 +1,115 @@
+@use '../styles/utils' as *;
+
+.preloader {
+  position: fixed;
+  inset: 0;
+  padding-left: var(--12);
+  padding-right: var(--12);
+  overflow: hidden;
+  z-index: var(--z-preloader);
+  background: #000;
+}
+
+.gradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(#000, var(--c-blue));
+  opacity: 0;
+}
+
+.wrap {
+  height: 100%;
+  width: 100%;
+  position: relative;
+  z-index: 2;
+
+  @include mobile {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: auto;
+    padding: 0 3.875rem 3rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+  }
+}
+
+.fact {
+  color: var(--c-red);
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  @include mobile {
+    position: static;
+    align-items: center;
+  }
+}
+
+.descriptionWrap {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0;
+  color: #fff;
+  width: 60%;
+
+  @include mobile {
+    position: static;
+    text-align: center;
+    margin-top: 0;
+    width: 100%;
+  }
+}
+
+.titleWrap,
+.descriptionWrap {
+  overflow: hidden;
+}
+
+.title {
+  line-height: 1;
+  color: var(--c-red);
+
+  @include mobile {
+    text-align: center;
+    white-space: nowrap;
+  }
+}
+
+.description {
+  color: #fff !important;
+}
+
+.progress {
+  position: absolute;
+  padding: var(--32);
+  left: 0;
+  top: 0;
+  color: #fff;
+
+  @include mobile {
+    left: 50%;
+    top: 25vh;
+    transform: translateX(-50%);
+    text-align: center;
+  }
+}
+
+.logoMob {
+  display: none;
+  @include mobile {
+    display: block;
+    width: 5.875rem;
+  }
+}
+
+.exit {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.6s ease;
+}

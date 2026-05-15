@@ -1,0 +1,47 @@
+@use "../../styles/utils" as *;
+
+.items {
+  padding: 0 var(--8);
+
+  @include mobile {
+    display: none;
+  }
+}
+
+.container {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  column-gap: var(--8);
+  row-gap: var(--32);
+}
+
+.item {
+  cursor: pointer;
+  text-align: center;
+}
+
+.photo {
+  aspect-ratio: 1;
+  margin-bottom: var(--4);
+}
+
+.filter {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--8);
+  padding: var(--8);
+  height: 8.125rem;
+  border-radius: 2.25rem 2.25rem 0 0;
+  background: var(--c-grey, #f4f4f4);
+  width: 29.3125rem;
+  position: sticky;
+  left: 50%;
+  transform: translateX(-50%) translateY(101%);
+  bottom: 0;
+  align-items: flex-start;
+  margin-top: var(--32);
+}
+
+.filter button {
+  width: 100%;
+}

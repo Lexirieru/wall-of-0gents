@@ -1,0 +1,100 @@
+@use '../../styles/utils' as *;
+
+.menuMob {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: var(--z-popup);
+  height: 100lvh;
+  display: none;
+}
+
+.opened {
+  display: block;
+}
+
+.background {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(28.5px);
+}
+
+.menuWrap {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100dvh;
+}
+
+.closeWrap {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 50%;
+}
+
+.links {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--c-grey);
+  gap: 0.5rem;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-65%);
+  width: 100%;
+  left: 0;
+}
+
+.active {
+  color: var(--c-yellow);
+}
+
+.foot {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+}
+
+.lang {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--c-grey);
+  padding: 0 1rem;
+}
+
+.langItem.active {
+  color: var(--c-yellow);
+}
+
+.info {
+  display: grid;
+  gap: var(--2);
+  text-align: center;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  padding: 1.5rem 1rem;
+}
+
+.socIcon {
+  width: 1rem;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.emailBtn {
+  grid-column: 1 / 5;
+}
+
+.link {
+  display: block;
+  transform: translateY(100%);
+  opacity: 0;
+}
