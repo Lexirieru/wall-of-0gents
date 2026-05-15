@@ -6,11 +6,14 @@ export interface AgentEntry {
   tokenId: string;
   ticker: string;
   name: string;
+  description?: string;
   systemPrompt: string;
   model?: string;
   priceUsdc: string;
+  runtime?: string;
   vaultBase?: string;
   shareToken?: string;
+  operatorUrl?: string;
   createdAt: number;
 }
 

@@ -181,16 +181,20 @@ export function createServer() {
       // POST /agents/register
       else if (req.method === "POST" && path === "/agents/register") {
         const body = await req.json().catch(() => null) as Partial<AgentEntry> | null;
-        if (!body?.tokenId || !body?.ticker || !body?.systemPrompt) {
-          res = err("missing tokenId, ticker, or systemPrompt");
+        if (!body?.tokenId || !body?.ticker) {
+          res = err("missing tokenId or ticker");
         } else {
           const entry: AgentEntry = {
             tokenId: body.tokenId,
-            ticker: body.ticker,
+            ticker: body.ticker.toUpperCase(),
             name: body.name ?? body.ticker,
-            systemPrompt: body.systemPrompt,
-            model: body.model,
-            priceUsdc: body.priceUsdc ?? "500000",
+            description: body.description ?? "",
+            systemPrompt: body.systemPrompt ?? `You are ${body.ticker.toUpperCase()}, an AI agent on Wall of 0Gents.`,
+            model: body.model ?? "google/gemini-2.0-flash-lite-001",
+            priceUsdc: body.priceUsdc ?? "100000",
+            runtime: body.runtime ?? "0g-ai",
+            shareToken: body.shareToken,
+            operatorUrl: body.operatorUrl,
             createdAt: Date.now(),
           };
           await dynamicRegistry.register(entry);
