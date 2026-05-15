@@ -53,12 +53,20 @@ export async function validateReceipt(
 
   if (receipt.status !== "success") throw new X402Error("INVALID_RECEIPT", "tx failed");
 
+  // Reorg protection: only enforce min-confirmations once the RPC head has
+  // actually advanced past the tx's block. If the head is behind the tx block
+  // it's RPC sync lag (the tx already has a receipt = it is mined), so we
+  // don't false-reject — but when the head IS ahead we require the gap.
   const minConf = BigInt(cfg.X402_MIN_CONFIRMATIONS);
   const head = await zgPublic.getBlockNumber();
-  // clamp to 0 — RPC nodes on testnet can be slightly out of sync
-  const confirmations = head >= receipt.blockNumber ? head - receipt.blockNumber : 0n;
-  if (confirmations < minConf)
-    throw new X402Error("UNCONFIRMED", `need ${cfg.X402_MIN_CONFIRMATIONS} confirmations, have ${confirmations}`);
+  if (head >= receipt.blockNumber) {
+    const confirmations = head - receipt.blockNumber;
+    if (confirmations < minConf)
+      throw new X402Error(
+        "UNCONFIRMED",
+        `need ${cfg.X402_MIN_CONFIRMATIONS} confirmations, have ${confirmations}`,
+      );
+  }
 
   // Find MockUSDC Transfer log from expectedSender to expectedRecipient
   parseAbiItem("event Transfer(address indexed from, address indexed to, uint256 value)");

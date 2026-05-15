@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
 import type { Server } from "bun";
 import { z } from "zod";
 import { cfg } from "../config.js";
@@ -16,7 +16,8 @@ import { priceFor } from "../runtime/pricing.js";
 import { queryReceipts, getReceipt } from "../store/receipts.js";
 import { dynamicRegistry, type AgentEntry } from "../store/dynamic-registry.js";
 import { consumePayment, PaymentReplayError } from "../store/payments.js";
-import { createPendingCall, getCall, listPendingCalls } from "../store/calls.js";
+import { consumeRegisterSig, RegisterReplayError } from "../store/register-sigs.js";
+import { createPendingCall, getCall, listPendingCalls, markCallError, incrementAttempt } from "../store/calls.js";
 import { executeCall } from "../compute/run-call.js";
 import { getDb } from "../store/db.js";
 import { pinJson, fetchText, isValidHash } from "../storage/og-storage-impl.js";
@@ -87,8 +88,23 @@ const RegisterSchema = z.object({
   operatorUrl: z.string().url().max(256).optional(),
 });
 
-function registerMessage(tokenId: string, ticker: string, ts: number): string {
-  return `Wall of 0gents :: register agent\ntokenId=${tokenId}\nticker=${ticker.toUpperCase()}\nts=${ts}`;
+// Canonical hash over the mutable agent payload. The register signature binds
+// THIS so a captured signature can't be replayed with swapped
+// systemPrompt/model/priceUsdc/operatorUrl (C1). Must byte-match the FE
+// (frontend/src/lib/agents.ts buildRegisterMessage).
+function registerPayloadHash(b: {
+  name?: string; description?: string; systemPrompt?: string; model?: string;
+  priceUsdc?: string; runtime?: string; shareToken?: string; operatorUrl?: string;
+}): string {
+  const canonical =
+    `name=${b.name ?? ""}|description=${b.description ?? ""}|systemPrompt=${b.systemPrompt ?? ""}` +
+    `|model=${b.model ?? ""}|priceUsdc=${b.priceUsdc ?? ""}|runtime=${b.runtime ?? ""}` +
+    `|shareToken=${b.shareToken ?? ""}|operatorUrl=${b.operatorUrl ?? ""}`;
+  return createHash("sha256").update(canonical).digest("hex");
+}
+
+function registerMessage(tokenId: string, ticker: string, ts: number, payloadHash: string): string {
+  return `Wall of 0gents :: register agent\ntokenId=${tokenId}\nticker=${ticker.toUpperCase()}\nts=${ts}\npayload=${payloadHash}`;
 }
 
 // ─── Rate limiting (fixed window, per IP + bucket) ────────────────────────
@@ -100,39 +116,75 @@ const RATE: Record<string, { limit: number; windowMs: number }> = {
 };
 const rlBuckets = new Map<string, { count: number; resetAt: number }>();
 
-function rateLimited(ip: string, bucket: keyof typeof RATE): boolean {
-  const conf = RATE[bucket];
-  const key = `${bucket}:${ip}`;
+// Global ceilings (per-bucket, IP-independent). These cap total throughput so
+// an attacker spoofing IPs cannot exceed them — defends C2 (free /agents/test
+// LLM-key drain) even if per-IP keying is bypassed.
+const GLOBAL_RATE: Record<string, { limit: number; windowMs: number }> = {
+  test: { limit: 60, windowMs: 60_000 },
+  register: { limit: 60, windowMs: 60_000 },
+  storage: { limit: 120, windowMs: 60_000 },
+  infer: { limit: 240, windowMs: 60_000 },
+};
+const globalBuckets = new Map<string, { count: number; resetAt: number }>();
+
+function bump(map: Map<string, { count: number; resetAt: number }>, key: string, limit: number, windowMs: number): boolean {
   const now = Date.now();
-  const cur = rlBuckets.get(key);
+  const cur = map.get(key);
   if (!cur || cur.resetAt < now) {
-    rlBuckets.set(key, { count: 1, resetAt: now + conf.windowMs });
+    map.set(key, { count: 1, resetAt: now + windowMs });
     return false;
   }
   cur.count++;
-  return cur.count > conf.limit;
+  return cur.count > limit;
+}
+
+function rateLimited(ip: string, bucket: keyof typeof RATE): boolean {
+  const conf = RATE[bucket];
+  const perIp = bump(rlBuckets, `${bucket}:${ip}`, conf.limit, conf.windowMs);
+  const g = GLOBAL_RATE[bucket];
+  const global = g ? bump(globalBuckets, bucket, g.limit, g.windowMs) : false;
+  return perIp || global;
 }
 
 function clientIp(req: Request, server: BunServer): string {
+  // Only honor X-Forwarded-For behind a trusted reverse proxy; otherwise it is
+  // attacker-controlled and would let one client forge unlimited rate-limit keys.
+  if (cfg.TRUST_PROXY) {
+    const xff = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+    if (xff) return xff;
+  }
   return (
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     server.requestIP(req)?.address ||
     "unknown"
   );
 }
 
-// Resolve the on-chain recipient for a token's payments. Returns null when the
-// agent is not configured for payment (so we never issue an unpayable challenge).
+// Resolve the on-chain payout vault for a token. Returns null when the agent
+// has no real WallVault yet — in that case we MUST NOT issue a payable
+// challenge. There is intentionally NO fallback: routing payments to
+// WallMarket (its old behaviour) sent USDC to a contract with no payout path
+// for x402 deposits, stranding funds. Fail-closed: no vault → not sellable.
 async function resolveVault(tokenId: bigint): Promise<`0x${string}` | null> {
-  let vaultBase = "";
+  let info: { vaultBase: `0x${string}`; operator: `0x${string}` };
   try {
-    vaultBase = (await getAgentInfo(tokenId)).vaultBase;
+    info = await getAgentInfo(tokenId);
   } catch {
-    /* not registered yet */
+    return null; // registry read failed / not registered
   }
-  if (vaultBase && vaultBase !== ZERO) return vaultBase as `0x${string}`;
-  if (cfg.WALL_MARKET && cfg.WALL_MARKET !== ZERO) return cfg.WALL_MARKET as `0x${string}`;
-  return null;
+
+  // Must be genuinely registered on-chain with a non-zero vault.
+  if (info.operator === ZERO || info.vaultBase === ZERO) return null;
+
+  // Defense-in-depth: never point a payer at an EOA / empty address even if
+  // the registry somehow holds garbage — the vault must be a contract.
+  try {
+    const code = await zgPublic.getCode({ address: info.vaultBase });
+    if (!code || code === "0x") return null;
+  } catch {
+    return null;
+  }
+
+  return info.vaultBase;
 }
 
 function startInference(p: {
@@ -140,6 +192,7 @@ function startInference(p: {
   tokenId: bigint;
   subscriber: `0x${string}`;
   prompt: string;
+  txHash: string;
 }) {
   const mem: PendingCall = { status: "pending", expiresAt: Date.now() + 10 * 60_000 };
   calls.set(p.callId, mem);
@@ -154,19 +207,34 @@ function startInference(p: {
   });
 }
 
-/** Re-run paid calls that were left pending by a crash/restart. */
+const MAX_RECOVERY_ATTEMPTS = 3;
+const RECOVERY_MAX_AGE_MS = 24 * 60 * 60_000;
+
+/** Re-run paid calls that were left pending by a crash/restart (M2: bounded). */
 export async function recoverPendingCalls() {
   const pend = listPendingCalls();
   if (pend.length === 0) return;
-  log.warn("recovering orphaned paid calls", { count: pend.length });
+  const now = Date.now();
+  let recovered = 0;
   for (const c of pend) {
+    // Give up on calls that have been retried too many times or are too old —
+    // prevents an infinite recover→re-bill loop for a permanently-stuck call.
+    if (c.attempts >= MAX_RECOVERY_ATTEMPTS || now - c.createdAt > RECOVERY_MAX_AGE_MS) {
+      markCallError(c.callId, "recovery abandoned (max attempts / too old)");
+      log.error("recovery abandoned", { callId: c.callId, attempts: c.attempts });
+      continue;
+    }
+    incrementAttempt(c.callId);
+    recovered++;
     startInference({
       callId: c.callId,
       tokenId: BigInt(c.tokenId),
       subscriber: c.subscriber as `0x${string}`,
       prompt: c.prompt,
+      txHash: c.txHash ?? "",
     });
   }
+  if (recovered > 0) log.warn("recovering orphaned paid calls", { count: recovered });
 }
 
 async function handleInfer(req: Request): Promise<Response> {
@@ -180,7 +248,11 @@ async function handleInfer(req: Request): Promise<Response> {
 
   const vaultAddr = await resolveVault(tokenId);
   if (!vaultAddr)
-    return err("agent has no payment vault configured (not registered on-chain)", 409);
+    return err(
+      "agent is not payable yet: no on-chain WallVault registered for this token. " +
+        "Register the agent on-chain (WallRegistry) before charging for inference.",
+      409,
+    );
 
   // No payment receipt → 402
   if (!txHash) return json({ x402: makeChallenge(vaultAddr, price) }, 402);
@@ -210,7 +282,7 @@ async function handleInfer(req: Request): Promise<Response> {
   // Persist call state BEFORE running so a crash can't lose a paid call.
   const callId = randomUUID();
   createPendingCall({ callId, txHash, tokenId, subscriber, prompt });
-  startInference({ callId, tokenId, subscriber: subscriber as `0x${string}`, prompt });
+  startInference({ callId, tokenId, subscriber: subscriber as `0x${string}`, prompt, txHash });
 
   return json({ callId, status: "pending" }, 202);
 }
@@ -267,14 +339,23 @@ async function handleRegister(req: Request): Promise<Response> {
   if (Math.abs(Date.now() - b.ts) > 10 * 60_000)
     return err("signature timestamp out of range", 401);
 
-  const message = registerMessage(b.tokenId, b.ticker, b.ts);
+  // Signature must cover the exact mutable payload (C1) ...
+  const message = registerMessage(b.tokenId, b.ticker, b.ts, registerPayloadHash(b));
   const ok = await verifyAgentOwner(
     BigInt(b.tokenId),
     b.owner as `0x${string}`,
     message,
     b.signature as `0x${string}`,
   );
-  if (!ok) return err("not authorized: signature must be from the current NFT owner", 401);
+  if (!ok) return err("not authorized: signature must be from the current NFT owner or operator", 401);
+
+  // ... and be single-use (kills the ±10-min replay window entirely).
+  try {
+    consumeRegisterSig(b.signature, b.tokenId);
+  } catch (e) {
+    if (e instanceof RegisterReplayError) return err("register signature already used", 409);
+    throw e;
+  }
 
   const ticker = b.ticker.toUpperCase();
   const entry: AgentEntry = {
@@ -309,6 +390,38 @@ async function handleTest(req: Request): Promise<Response> {
   return json({ callId: output.callId, response: output.response, model: output.model });
 }
 
+// M3: receipts are private. The caller must prove control of `subscriber` with
+// a fresh signature; only that subscriber's receipts are returned.
+async function handleReceipts(url: URL): Promise<Response> {
+  const subscriber = url.searchParams.get("subscriber") ?? "";
+  const tsRaw = url.searchParams.get("ts") ?? "";
+  const sig = url.searchParams.get("sig") ?? "";
+  const tokenId = url.searchParams.get("tokenId") ?? undefined;
+
+  if (!/^0x[0-9a-fA-F]{40}$/.test(subscriber)) return err("invalid or missing subscriber");
+  if (!/^\d+$/.test(tsRaw)) return err("invalid or missing ts");
+  if (!/^0x[0-9a-fA-F]{130}$/.test(sig)) return err("invalid or missing sig");
+  if (tokenId && !/^\d+$/.test(tokenId)) return err("invalid tokenId");
+
+  const ts = Number(tsRaw);
+  if (Math.abs(Date.now() - ts) > 10 * 60_000) return err("signature timestamp out of range", 401);
+
+  const message = `Wall of 0gents :: read receipts\nsubscriber=${subscriber.toLowerCase()}\nts=${ts}`;
+  let ok = false;
+  try {
+    ok = await zgPublic.verifyMessage({
+      address: subscriber as `0x${string}`,
+      message,
+      signature: sig as `0x${string}`,
+    });
+  } catch {
+    ok = false;
+  }
+  if (!ok) return err("not authorized: signature must be from the subscriber", 401);
+
+  return json(queryReceipts(tokenId, subscriber));
+}
+
 async function handleReadyz(): Promise<Response> {
   const checks: Record<string, boolean> = {};
   const results = await Promise.allSettled([
@@ -326,6 +439,7 @@ export function createServer() {
     const now = Date.now();
     for (const [id, call] of calls) if (call.expiresAt < now) calls.delete(id);
     for (const [k, v] of rlBuckets) if (v.resetAt < now) rlBuckets.delete(k);
+    for (const [k, v] of globalBuckets) if (v.resetAt < now) globalBuckets.delete(k);
   }, 60_000);
 
   return Bun.serve({
@@ -337,6 +451,16 @@ export function createServer() {
       const started = Date.now();
 
       if (req.method === "OPTIONS") return cors(new Response(null, { status: 204 }));
+
+      // Body-size cap (council R2): req.json() buffers the whole body in
+      // memory before zod ever runs, so an unbounded POST is a memory/disk
+      // DoS even with per-request rate limits. og-storage writes to disk so
+      // it gets the tighter cap.
+      if (req.method === "POST") {
+        const max = path === "/og-storage/pin" ? 512 * 1024 : 64 * 1024;
+        const len = Number(req.headers.get("content-length") ?? "0");
+        if (len > max) return cors(err("request body too large", 413));
+      }
 
       const ip = clientIp(req, server);
       let res: Response;
@@ -356,12 +480,7 @@ export function createServer() {
             ? err("rate limit exceeded", 429)
             : await handleRegister(req);
         } else if (req.method === "GET" && path === "/receipts") {
-          const tokenId = url.searchParams.get("tokenId") ?? undefined;
-          const subscriber = url.searchParams.get("subscriber") ?? undefined;
-          if (tokenId && !/^\d+$/.test(tokenId)) res = err("invalid tokenId");
-          else if (subscriber && !/^0x[0-9a-fA-F]{40}$/.test(subscriber))
-            res = err("invalid subscriber");
-          else res = json(queryReceipts(tokenId, subscriber));
+          res = await handleReceipts(url);
         } else if (req.method === "POST" && path === "/og-storage/pin") {
           if (rateLimited(ip, "storage")) res = err("rate limit exceeded", 429);
           else {

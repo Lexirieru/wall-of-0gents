@@ -6,16 +6,29 @@ const Cfg = z.object({
 
   // Wallet
   OPERATOR_PRIVATE_KEY: z.string().startsWith("0x"),
+  // L1: optional low-privilege key that ONLY signs receipts. Falls back to the
+  // operator key if unset. In production set a separate key so a compromised
+  // node can't also act as the on-chain operator/owner.
+  RECEIPT_SIGNER_PRIVATE_KEY: z.string().startsWith("0x").optional(),
 
   // 0G contracts
   WALL_AGENT_NFT: z.string().startsWith("0x"),
   WALL_REGISTRY: z.string().startsWith("0x"),
   WALL_MARKET: z.string().startsWith("0x"),
+  // WallFractionalizer — relays usage grants post-launch (it owns the iNFT).
+  WALL_FRACTIONALIZER: z.string().startsWith("0x").default("0x2c3a47fdF42a795196C80FFf1775920e562284B4"),
 
   // x402 settlement asset — ERC-20 on 0G Galileo (the MockUSDC deployed with
   // the contracts). Payments are validated on 0G, not Base anymore.
   PAYMENT_ASSET: z.string().startsWith("0x").default("0x0d837aD954F4f9F06E303A86150ad0F322Ec5EB1"),
-  X402_MIN_CONFIRMATIONS: z.coerce.number().int().min(0).default(0),
+  // Reorg protection. Default 1; the validator only enforces this once the RPC
+  // head has actually advanced past the tx block (so testnet RPC lag does not
+  // false-reject a mined tx). Set higher for production.
+  X402_MIN_CONFIRMATIONS: z.coerce.number().int().min(0).default(1),
+
+  // Only trust X-Forwarded-For when behind a known reverse proxy. Off by
+  // default so rate-limit keys can't be spoofed by arbitrary clients.
+  TRUST_PROXY: z.coerce.boolean().default(false),
 
   // LLM backend
   COMPUTE_BACKEND: z.enum(["openai-compat", "0g-compute"]).default("openai-compat"),

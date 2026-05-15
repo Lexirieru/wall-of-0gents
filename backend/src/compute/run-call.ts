@@ -1,6 +1,6 @@
 import { getRuntimeFor } from "../runtime/index.js";
 import { buildReceipt, type InferenceReceipt } from "./receipt.js";
-import { saveReceipt } from "../store/receipts.js";
+import { saveReceipt, getReceipt } from "../store/receipts.js";
 import { markCallDone, markCallError } from "../store/calls.js";
 import { authorizeUsage } from "../chain/clients.js";
 import { log } from "../log.js";
@@ -22,7 +22,16 @@ export async function executeCall(p: {
   tokenId: bigint;
   subscriber: `0x${string}`;
   prompt: string;
+  txHash: string;
 }): Promise<CallResult | { error: string }> {
+  // M2: idempotency — if a receipt already exists (we crashed AFTER inference
+  // but before marking done), don't re-run the LLM or re-fire authorizeUsage.
+  const existing = getReceipt(p.callId);
+  if (existing) {
+    markCallDone(p.callId);
+    return { callId: p.callId, response: existing.response, receipt: existing.receipt };
+  }
+
   try {
     const runtime = getRuntimeFor(p.tokenId);
     const output = await runtime.run({
@@ -35,7 +44,9 @@ export async function executeCall(p: {
       callId: p.callId,
       tokenId: p.tokenId,
       subscriber: p.subscriber,
+      prompt: p.prompt,
       output: output.response,
+      txHash: p.txHash,
       bundleHashBefore: output.bundleHashBefore,
       bundleHashAfter: output.bundleHashAfter,
     });

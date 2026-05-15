@@ -12,6 +12,7 @@ export interface CallRow {
   error: string | null;
   createdAt: number;
   updatedAt: number;
+  attempts: number;
 }
 
 /**
@@ -28,9 +29,16 @@ export function createPendingCall(p: {
 }): void {
   const now = Date.now();
   getDb().run(
-    "INSERT OR REPLACE INTO calls (callId,txHash,tokenId,subscriber,prompt,status,error,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?)",
+    "INSERT OR REPLACE INTO calls (callId,txHash,tokenId,subscriber,prompt,status,error,createdAt,updatedAt,attempts) VALUES (?,?,?,?,?,?,?,?,?,0)",
     [p.callId, p.txHash, p.tokenId.toString(), p.subscriber.toLowerCase(), p.prompt, "pending", null, now, now],
   );
+}
+
+export function incrementAttempt(callId: string): void {
+  getDb().run("UPDATE calls SET attempts = attempts + 1, updatedAt=? WHERE callId=?", [
+    Date.now(),
+    callId,
+  ]);
 }
 
 export function markCallDone(callId: string): void {

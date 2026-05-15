@@ -36,6 +36,27 @@ export const wallAgentNftAbi = [
   },
 ] as const;
 
+export const wallFractionalizerAbi = [
+  {
+    name: "authorizeUsageFor",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "tokenId", type: "uint256" },
+      { name: "user", type: "address" },
+      { name: "expiresAt", type: "uint64" },
+    ],
+    outputs: [],
+  },
+  {
+    name: "usageOperator",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
+  },
+] as const;
+
 export const wallRegistryAbi = [
   {
     name: "info",

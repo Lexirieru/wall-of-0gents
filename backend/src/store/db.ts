@@ -45,15 +45,27 @@ export function getDb(): Database {
       status     TEXT NOT NULL,
       error      TEXT,
       createdAt  INTEGER NOT NULL,
-      updatedAt  INTEGER NOT NULL
+      updatedAt  INTEGER NOT NULL,
+      attempts   INTEGER NOT NULL DEFAULT 0
     );
     CREATE INDEX IF NOT EXISTS idx_calls_status ON calls(status);
+
+    CREATE TABLE IF NOT EXISTS consumed_register_sigs (
+      sigHash    TEXT PRIMARY KEY,
+      tokenId    TEXT NOT NULL,
+      consumedAt INTEGER NOT NULL
+    );
   `);
 
   // Migrate older receipts DBs that predate the `response` column.
   const cols = db.query("PRAGMA table_info(receipts)").all() as { name: string }[];
   if (!cols.some((c) => c.name === "response")) {
     db.run("ALTER TABLE receipts ADD COLUMN response TEXT NOT NULL DEFAULT ''");
+  }
+  // Migrate older DBs that predate the calls.attempts column (M2).
+  const callCols = db.query("PRAGMA table_info(calls)").all() as { name: string }[];
+  if (callCols.length > 0 && !callCols.some((c) => c.name === "attempts")) {
+    db.run("ALTER TABLE calls ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0");
   }
 
   _db = db;
