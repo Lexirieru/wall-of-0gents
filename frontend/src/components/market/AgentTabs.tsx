@@ -43,6 +43,7 @@ const TabBtn = forwardRef<HTMLButtonElement, TabBtnProps>(function TabBtn(
       ref={ref}
       onClick={onClick}
       disabled={disabled}
+      className="agent-tab-btn"
       style={{
         padding: '12px 20px',
         fontFamily: 'var(--font-mono)',
@@ -157,6 +158,7 @@ export function AgentTabs({ ticker, tokenId, hasIpo, isRegistered, ipoAddress, i
       {/* Tab bar with sliding red indicator */}
       <div
         ref={tabBarRef}
+        className="agent-tab-bar"
         style={{ position: 'relative', display: 'flex', borderBottom: '1px solid var(--hair)', marginBottom: 24 }}
       >
         <span
@@ -338,43 +340,90 @@ function BuyTab({ ipoAddress, ticker }: { ipoAddress: Hex; ticker: string }) {
         </button>
       ) : (
         <>
-          <div style={{ marginBottom: 12 }}>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', marginBottom: 6, letterSpacing: '0.08em' }}>
-              AMOUNT
+          {/* Order panel */}
+          <div style={{ border: '1px solid var(--hair)', background: '#080808', marginBottom: 16, overflow: 'hidden' }}>
+            {/* Header */}
+            <div style={{
+              padding: '8px 14px', borderBottom: '1px solid var(--hair)',
+              fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)',
+              letterSpacing: '0.1em', textTransform: 'uppercase',
+            }}>
+              How many shares to buy?
             </div>
-            <div style={{ display: 'flex', border: '1px solid var(--hair)', background: '#080808' }}>
+
+            {/* Quick-select presets */}
+            {(() => {
+              const PRESETS = ['10', '100', '1000']
+              const activeIdx = PRESETS.indexOf(shares)
+              return (
+                <div style={{ position: 'relative', display: 'flex', borderBottom: '1px solid var(--hair)' }}>
+                  {activeIdx !== -1 && (
+                    <div style={{
+                      position: 'absolute', top: 0, bottom: 0,
+                      width: `${100 / PRESETS.length}%`,
+                      transform: `translateX(${activeIdx * 100}%)`,
+                      background: 'var(--hair-2)',
+                      transition: 'transform 0.25s cubic-bezier(0.24, 1, 0.36, 1)',
+                      pointerEvents: 'none',
+                    }} />
+                  )}
+                  {PRESETS.map(preset => (
+                    <button
+                      key={preset}
+                      onClick={() => setShares(preset)}
+                      style={{
+                        flex: 1, padding: '8px 0', background: 'transparent',
+                        fontFamily: 'var(--font-mono)', fontSize: 11,
+                        color: shares === preset ? 'var(--fg)' : 'var(--mute)',
+                        border: 'none', cursor: 'pointer', letterSpacing: '0.04em',
+                        textAlign: 'center', position: 'relative', zIndex: 1,
+                        transition: 'color 0.2s',
+                      }}
+                    >
+                      {Number(preset).toLocaleString()}
+                    </button>
+                  ))}
+                </div>
+              )
+            })()}
+
+            {/* Input */}
+            <div style={{ padding: '12px 16px 4px' }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--accent)', letterSpacing: '0.08em', marginBottom: 6 }}>
+                {ticker} SHARES
+              </div>
               <input
                 value={shares}
                 onChange={e => setShares(e.target.value.replace(/[^0-9]/g, ''))}
+                inputMode="numeric"
                 style={{
-                  flex: 1, background: 'transparent', border: 'none', outline: 'none',
-                  fontFamily: 'var(--font-mono)', fontSize: 22, color: 'var(--fg)', padding: '14px 16px',
+                  width: '100%', background: 'transparent', border: 'none', outline: 'none',
+                  fontFamily: 'var(--font-mono)', fontSize: 28, color: 'var(--fg)',
+                  padding: 0,
                 }}
                 placeholder="0"
               />
-              <span style={{
-                fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--mute)',
-                padding: '14px 16px', borderLeft: '1px solid var(--hair)', alignSelf: 'center',
-              }}>
-                shares
+            </div>
+
+            {/* Cost summary */}
+            <div style={{
+              borderTop: '1px solid var(--hair)', padding: '10px 14px',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', letterSpacing: '0.06em' }}>
+                {shares || '0'} shares × ${priceUsd}
+              </span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: 'var(--fg)', fontWeight: 700 }}>
+                ${costUsd} <span style={{ fontSize: 10, color: 'var(--mute)', fontWeight: 400 }}>USDC</span>
               </span>
             </div>
-          </div>
-
-          <div style={{
-            fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--mute)',
-            marginBottom: 16, padding: '10px 14px', background: 'var(--panel)',
-            border: '1px solid var(--hair)', display: 'flex', justifyContent: 'space-between',
-          }}>
-            <span>total cost</span>
-            <span style={{ color: 'var(--fg)' }}>${costUsd} USDC</span>
           </div>
 
           <button
             className="btn primary"
             onClick={handleBuy}
             disabled={busy || !stats?.isOpen || sharesAmount === 0n}
-            style={{ width: '100%', cursor: (busy || !stats?.isOpen) ? 'not-allowed' : 'pointer', padding: '13px 0', fontSize: 13 }}
+            style={{ width: '100%', cursor: (busy || !stats?.isOpen) ? 'not-allowed' : 'pointer', padding: '14px 0', fontSize: 13 }}
           >
             {busy ? '● processing...' : `▸ BUY ${shares || '0'} ${ticker} SHARES`}
           </button>
