@@ -53,6 +53,7 @@ contract WallLaunchFactory is IERC721Receiver {
 
     error OnlyAgentNFT();
     error InvalidParams();
+    error EmptyLaunchData();
 
     constructor(address _agentNft, address _fractionalizer, address _paymentAsset, address _registry) {
         agentNft = IERC721(_agentNft);
@@ -73,6 +74,9 @@ contract WallLaunchFactory is IERC721Receiver {
         returns (bytes4)
     {
         if (msg.sender != address(agentNft)) revert OnlyAgentNFT();
+        // Clear error for a plain transfer / malformed payload instead of an
+        // opaque abi.decode revert surfacing as ERC721InvalidReceiver.
+        if (data.length < 64) revert EmptyLaunchData();
 
         LaunchParams memory p = abi.decode(data, (LaunchParams));
         if (p.ipoStartsAt >= p.ipoEndsAt) revert InvalidParams();
