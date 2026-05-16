@@ -188,8 +188,8 @@ export function AgentTabs({ ticker, tokenId, hasIpo, isRegistered, ipoAddress, i
                       </tr>
                     </thead>
                     <tbody>
-                      {inferences.slice(0, 10).map(inf => (
-                        <tr key={inf.id}>
+                      {inferences.slice(0, 10).map((inf, i) => (
+                        <tr key={inf.id || `${inf.subscriber}-${inf.timestamp}-${i}`}>
                           <td className="mute">{relativeTime(inf.timestamp)}</td>
                           <td className="mute">{shortAddr(inf.subscriber)}</td>
                           <td style={{ maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

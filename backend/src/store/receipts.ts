@@ -35,6 +35,7 @@ export function countCallsToday(tokenId: string): number {
 }
 
 export interface PublicReceipt {
+  callId: string;
   tokenId: string;
   subscriber: string;
   timestamp: number;
@@ -47,17 +48,23 @@ export interface PublicReceipt {
  * (the full receipt read stays signature-gated — M3).
  */
 export function queryReceiptsPublic(tokenId?: string, limit = 200): PublicReceipt[] {
-  let sql = "SELECT tokenId, subscriber, ts FROM receipts WHERE 1=1";
+  let sql = "SELECT callId, tokenId, subscriber, ts FROM receipts WHERE 1=1";
   const params: string[] = [];
   if (tokenId) { sql += " AND tokenId=?"; params.push(tokenId); }
   sql += " ORDER BY ts DESC LIMIT ?";
   params.push(limit.toString());
   const rows = getDb().query(sql).all(...params) as {
+    callId: string;
     tokenId: string;
     subscriber: string;
     ts: number;
   }[];
-  return rows.map((r) => ({ tokenId: r.tokenId, subscriber: r.subscriber, timestamp: r.ts }));
+  return rows.map((r) => ({
+    callId: r.callId,
+    tokenId: r.tokenId,
+    subscriber: r.subscriber,
+    timestamp: r.ts,
+  }));
 }
 
 export function getReceipt(callId: string): StoredReceipt | null {
