@@ -130,7 +130,7 @@ function BuyPanel({ ipoAddress, ticker }: { ipoAddress: Hex; ticker: string }) {
   }
 
   return (
-    <div style={{ width: 340, background: 'var(--panel)', border: '1px solid var(--hair)' }}>
+    <div style={{ width: '100%', maxWidth: 340, background: 'var(--panel)', border: '1px solid var(--hair)' }}>
       {/* Header */}
       <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--hair)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', letterSpacing: '0.08em' }}>

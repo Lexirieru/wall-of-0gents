@@ -114,6 +114,21 @@ export function AgentTabs({ ticker, tokenId, hasIpo, isRegistered, ipoAddress, i
     }
   }, [tab])
 
+  // Re-snap indicator on resize (no animation — snap to avoid stale layout values)
+  useEffect(() => {
+    const positionIndicator = () => {
+      const activeIndex = TAB_ORDER.indexOf(tab)
+      const activeEl = tabRefs.current[activeIndex]
+      if (indicatorRef.current && activeEl) {
+        gsap.set(indicatorRef.current, { x: activeEl.offsetLeft, width: activeEl.offsetWidth })
+      }
+    }
+    let raf = 0
+    const onResize = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(positionIndicator) }
+    window.addEventListener('resize', onResize)
+    return () => { window.removeEventListener('resize', onResize); cancelAnimationFrame(raf) }
+  }, [tab])
+
   // Fade in content when tab changes (skip on mount)
   useEffect(() => {
     if (isFirstRender.current) {
@@ -296,7 +311,7 @@ function BuyTab({ ipoAddress, ticker }: { ipoAddress: Hex; ticker: string }) {
 
   return (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, background: 'var(--hair)', marginBottom: 24 }}>
+      <div className="r-grid-auto" style={{ gap: 1, background: 'var(--hair)', marginBottom: 24 }}>
         <div className="stat">
           <div className="label">PRICE / SHARE</div>
           <div className="value">{stats ? `$${priceUsd}` : '...'}</div>
