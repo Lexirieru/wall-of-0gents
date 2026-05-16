@@ -77,7 +77,7 @@ export async function listAgents(): Promise<AgentSummary[]> {
   ])
 
   // Build map of callsToday per tokenId
-  const today = Math.floor(Date.now() / 1000) - 86400
+  const today = Date.now() - 86_400_000 // ms (receipt.timestamp is ms)
   const callsMap: Record<string, number> = {}
   for (const r of receipts) {
     if ((r.timestamp ?? 0) > today) {
@@ -121,7 +121,7 @@ function formatUsdc(raw: string): string {
 
 async function loadAllReceipts(): Promise<Array<{ tokenId: number; timestamp: number }>> {
   try {
-    const res = await fetch(`${OPERATOR_URL}/receipts`, {
+    const res = await fetch(`${OPERATOR_URL}/receipts/public`, {
       cache: 'no-store',
       signal: AbortSignal.timeout(3000),
     })
@@ -141,7 +141,7 @@ async function loadAllReceipts(): Promise<Array<{ tokenId: number; timestamp: nu
 
 export async function loadInferences(tokenId: number) {
   try {
-    const res = await fetch(`${OPERATOR_URL}/receipts?tokenId=${tokenId}`, {
+    const res = await fetch(`${OPERATOR_URL}/receipts/public?tokenId=${tokenId}`, {
       cache: 'no-store',
       signal: AbortSignal.timeout(3000),
     })
