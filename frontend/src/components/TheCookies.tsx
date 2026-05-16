@@ -12,6 +12,7 @@ export default function TheCookies() {
 
   useEffect(() => {
     if (localStorage.getItem('isCookiesAccepted')) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsCookies(false)
     }
   }, [])

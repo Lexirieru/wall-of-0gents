@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { useAccount } from 'wagmi'
 import { zgPublicClient } from '@/lib/chain'
-import { CONTRACTS, wallFractionalizerAbi, erc20Abi, wallAgentNftAbi, wallLaunchFactoryAbi } from '@/lib/abis'
+import { CONTRACTS, erc20Abi, wallAgentNftAbi, wallLaunchFactoryAbi } from '@/lib/abis'
 import { shortAddr } from '@/lib/format'
 import { RegisterToExchangePanel } from '@/components/market/RegisterToExchangePanel'
 import type { Hex } from 'viem'
@@ -124,6 +124,7 @@ export default function PortfolioPage() {
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!address || !isConnected) { setHoldings([]); setLoaded(false); return }
     setLoading(true)
     loadPortfolio(address as Hex)

@@ -5,14 +5,14 @@ const STATIC_PRICES: Record<string, bigint> = {
   "1": 1_000_000n, // $1.00 — WAGNT
 };
 
-const DEFAULT_PRICE = 500_000n; // $0.50
+const DEFAULT_PRICE = 400n; // $0.0004
+export const MIN_PRICE = 400n; // $0.0004 — floor enforced at register + runtime
 
 function parsePrice(raw: string | undefined): bigint | null {
   if (!raw) return null;
   if (!/^\d+$/.test(raw)) return null;
   const v = BigInt(raw);
-  // Reject zero / absurd values so a bad registry entry can't make inference free.
-  if (v <= 0n) return null;
+  if (v < MIN_PRICE) return null;
   return v;
 }
 

@@ -221,7 +221,7 @@ function defaultSystemPrompt(ticker: string, archetype: typeof ARCHETYPES[0]): s
 
 // ─── Step indicator bar ────────────────────────────────────────────────────
 function StepBar({ current, completed }: { current: WizStep; completed: Set<WizStep> }) {
-  const idx = STEPS.findIndex(s => s.id === current)
+  const _idx = STEPS.findIndex(s => s.id === current)
   return (
     <div style={{ display: 'flex', overflowX: 'auto', borderBottom: '1px solid var(--hair)', marginBottom: 40 }} className="step-bar">
       {STEPS.map((s, i) => {
@@ -317,7 +317,7 @@ function ArchetypeStep({
         </h1>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
           <p style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--mute)', margin: 0, flex: 1 }}>
-            each archetype ships with pre-wired tools. you'll customize the prompt and pricing in step 02.
+            each archetype ships with pre-wired tools. you&apos;ll customize the prompt and pricing in step 02.
           </p>
           <span className="arch-badge" style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', whiteSpace: 'nowrap', flexShrink: 0 }}>
             {ARCHETYPES.length} ARCHETYPES · CLONE &amp; CUSTOMIZE AFTER MINT
@@ -579,7 +579,11 @@ function IdentityStep({
               <input
                 value={price}
                 onChange={e => setPrice(e.target.value)}
-                placeholder="0.10"
+                onBlur={() => {
+                  const n = parseFloat(price)
+                  if (!Number.isFinite(n) || n < 0.0004) setPrice('0.0004')
+                }}
+                placeholder="0.0004"
                 style={{
                   flex: 1, background: 'transparent', border: 'none', outline: 'none',
                   fontFamily: 'var(--font-mono)', fontSize: 14, color: 'var(--fg)', padding: '12px 0', minWidth: 0,
@@ -589,8 +593,8 @@ function IdentityStep({
                 USDC
               </span>
             </div>
-            {price && <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', marginTop: 4 }}>
-              shareholders receive ${price} per inference call
+            {price && <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, marginTop: 4, color: parseFloat(price) < 0.0004 ? '#f59e0b' : 'var(--mute)' }}>
+              {parseFloat(price) < 0.0004 ? '⚠ minimum $0.0004, will snap on confirm' : `shareholders receive $${price} per inference call`}
             </div>}
           </div>
 
@@ -959,6 +963,7 @@ function ReviewStep({
     description: `${archetype.tagline}`,
     operatorUrl: operatorUrl || null,
     price: price,
+    // eslint-disable-next-line react-hooks/purity
     mintedAt: Date.now(),
   }), [ticker, archetypeId, price, operatorUrl, archetype.tagline])
 
@@ -1098,7 +1103,7 @@ function ReviewStep({
 // ─── Step 04: Launch (1-tx factory) + Register ─────────────────────────────
 function ListStep({
   ticker, tokenId, txHash, description, price, archetypeId, operatorUrl,
-  systemPrompt, skills, ipoPrice, ipoAllocation, ipoDays,
+  systemPrompt, skills: _skills, ipoPrice, ipoAllocation, ipoDays,
 }: {
   ticker: string; tokenId: string; txHash: string
   description: string; price: string; archetypeId: string; operatorUrl: string
@@ -1200,8 +1205,8 @@ function ListStep({
 
     const parsedPrice = parseFloat(price)
     const priceUsdc = price && Number.isFinite(parsedPrice) && parsedPrice > 0
-      ? String(Math.round(parsedPrice * 1_000_000))
-      : '100000'
+      ? String(Math.max(400, Math.round(parsedPrice * 1_000_000)))
+      : '400'
 
     // Build the exact entry first so the signature binds it (C1).
     const entry: RegisterEntry = {

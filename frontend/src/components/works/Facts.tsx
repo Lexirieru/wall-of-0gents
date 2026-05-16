@@ -21,7 +21,9 @@ export default function WorksFacts() {
 
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger)
+    // eslint-disable-next-line react-hooks/immutability
     initFacts()
+    // eslint-disable-next-line react-hooks/immutability
     setPaginationHeight()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

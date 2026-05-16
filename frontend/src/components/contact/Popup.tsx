@@ -59,7 +59,9 @@ export default function ContactPopup({ onClose }: Props) {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     updateTimes()
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTimestamp(formatTime(new Date()))
 
     gsap.fromTo(

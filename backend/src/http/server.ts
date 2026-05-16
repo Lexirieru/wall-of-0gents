@@ -12,7 +12,7 @@ import {
   zgPublic,
 } from "../chain/clients.js";
 import { getRuntimeFor } from "../runtime/index.js";
-import { priceFor } from "../runtime/pricing.js";
+import { priceFor, MIN_PRICE } from "../runtime/pricing.js";
 import { queryReceipts, queryReceiptsPublic, getReceipt, countCallsToday } from "../store/receipts.js";
 import { dynamicRegistry, type AgentEntry } from "../store/dynamic-registry.js";
 import { consumePayment, PaymentReplayError } from "../store/payments.js";
@@ -397,6 +397,9 @@ async function handleRegister(req: Request): Promise<Response> {
   if (Math.abs(Date.now() - b.ts) > 10 * 60_000)
     return err("signature timestamp out of range", 401);
 
+  if (b.priceUsdc !== undefined && BigInt(b.priceUsdc) < MIN_PRICE)
+    return err(`priceUsdc too low: minimum is ${MIN_PRICE} ($0.0004 USDC)`, 400);
+
   // Signature must cover the exact mutable payload (C1) ...
   const message = registerMessage(b.tokenId, b.ticker, b.ts, registerPayloadHash(b));
   const ok = await verifyAgentOwner(
@@ -423,7 +426,7 @@ async function handleRegister(req: Request): Promise<Response> {
     description: b.description ?? "",
     systemPrompt: b.systemPrompt ?? `You are ${ticker}, an AI agent on Wall of 0Gents.`,
     model: b.model ?? "google/gemini-2.0-flash-lite-001",
-    priceUsdc: b.priceUsdc ?? "100000",
+    priceUsdc: b.priceUsdc ?? String(MIN_PRICE),
     runtime: b.runtime ?? "0g-ai",
     shareToken: b.shareToken,
     operatorUrl: b.operatorUrl,

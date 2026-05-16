@@ -32,8 +32,11 @@ export default function VideoPlayer({ src }: Props) {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsPlaying(true)
+    // eslint-disable-next-line react-hooks/immutability
     const handleMouseUp = (e: MouseEvent) => { if (isScrubbing) toggleScrubbing(e) }
+    // eslint-disable-next-line react-hooks/immutability
     const handleMouseMove = (e: MouseEvent) => { if (isScrubbing) handleTimelineUpdate(e) }
     document.addEventListener('mouseup', handleMouseUp)
     document.addEventListener('mousemove', handleMouseMove)

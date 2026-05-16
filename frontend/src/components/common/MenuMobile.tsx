@@ -33,7 +33,7 @@ export default function MenuMobile() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-    let cleanups: Array<() => void> = []
+    const cleanups: Array<() => void> = []
     ;(async () => {
       try {
         const { gsap } = await import('gsap')
