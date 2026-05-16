@@ -30,8 +30,8 @@ export class X402Error extends Error {
 export function makeChallenge(vaultAddress: string, minAmountUsdc: bigint) {
   return {
     scheme: "x402",
-    network: "0g-galileo",
-    chainId: 16602,
+    network: cfg.ZG_CHAIN_ID === 16661 ? "0g-mainnet" : "0g-galileo",
+    chainId: cfg.ZG_CHAIN_ID,
     asset: cfg.PAYMENT_ASSET,
     recipient: vaultAddress,
     minAmount: minAmountUsdc.toString(),

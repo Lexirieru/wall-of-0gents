@@ -18,6 +18,15 @@ function productionGuards() {
     log.warn("PROD-GUARD: CORS is wildcard '*'. Set CORS_ORIGINS to an allowlist for mainnet.");
   if (cfg.X402_MIN_CONFIRMATIONS < 3)
     log.warn(`PROD-GUARD: X402_MIN_CONFIRMATIONS=${cfg.X402_MIN_CONFIRMATIONS} (reorg risk). Use >=3 for mainnet value.`);
+  // Chain/asset coherence — catches "deployed to mainnet but still pointing at
+  // testnet RPC/asset" (and vice-versa) which would silently misroute payments.
+  const onMainnet = cfg.ZG_CHAIN_ID === 16661;
+  if (onMainnet && cfg.ZG_RPC_URL.includes("testnet"))
+    log.warn("PROD-GUARD: ZG_CHAIN_ID=16661 (mainnet) but ZG_RPC_URL is a testnet endpoint.");
+  if (onMainnet && cfg.PAYMENT_ASSET.toLowerCase() === TESTNET_MOCK_USDC)
+    log.warn("PROD-GUARD: mainnet chain with testnet MockUSDC as PAYMENT_ASSET — set 0G mainnet USDC.e.");
+  if (!onMainnet && cfg.ZG_CHAIN_ID !== 16602)
+    log.warn(`PROD-GUARD: ZG_CHAIN_ID=${cfg.ZG_CHAIN_ID} is neither 0G testnet (16602) nor mainnet (16661).`);
 }
 
 async function main() {

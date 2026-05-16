@@ -1,8 +1,11 @@
 import { z } from "zod";
 
 const Cfg = z.object({
-  // RPC — single chain: 0G Galileo (16602). Base was removed project-wide.
+  // Chain — config-driven so the SAME build runs on testnet or mainnet by env
+  // only. 0G Galileo testnet = 16602 (https://evmrpc-testnet.0g.ai);
+  // 0G mainnet = 16661 (https://evmrpc.0g.ai).
   ZG_RPC_URL: z.string().url().default("https://evmrpc-testnet.0g.ai"),
+  ZG_CHAIN_ID: z.coerce.number().int().positive().default(16602),
 
   // Wallet
   OPERATOR_PRIVATE_KEY: z.string().startsWith("0x"),
@@ -46,8 +49,10 @@ const Cfg = z.object({
   // CORS: "*" (default, testnet) or a comma-separated origin allowlist (prod).
   CORS_ORIGINS: z.string().default("*"),
 
-  // Server
-  HTTP_PORT: z.coerce.number().default(8402),
+  // Server. Honor the platform-injected $PORT (Railway/Render/etc.) when
+  // HTTP_PORT isn't explicitly set, otherwise the app binds the wrong port
+  // and the deploy is unreachable.
+  HTTP_PORT: z.coerce.number().default(Number(process.env.PORT) || 8402),
 
   // Persistence
   AGENTS_DATA_DIR: z.string().default("./data/agents"),

@@ -4,8 +4,8 @@ import { cfg } from "../config.js";
 import { wallAgentNftAbi, wallRegistryAbi, wallFractionalizerAbi } from "./abis.js";
 
 export const zgChain = {
-  id: 16602,
-  name: "0G Galileo",
+  id: cfg.ZG_CHAIN_ID,
+  name: cfg.ZG_CHAIN_ID === 16661 ? "0G Mainnet" : "0G Galileo",
   nativeCurrency: { name: "A0GI", symbol: "A0GI", decimals: 18 },
   rpcUrls: { default: { http: [cfg.ZG_RPC_URL] } },
 } as const;

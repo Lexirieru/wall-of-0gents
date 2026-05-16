@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { receiptSigner } from "../chain/clients.js";
 import { cfg } from "../config.js";
 
-const ZG_CHAIN_ID = 16602;
+const ZG_CHAIN_ID = cfg.ZG_CHAIN_ID;
 
 export interface InferenceReceipt {
   version: 4;
