@@ -27,6 +27,16 @@ function productionGuards() {
     log.warn("PROD-GUARD: mainnet chain with testnet MockUSDC as PAYMENT_ASSET — set 0G mainnet USDC.e.");
   if (!onMainnet && cfg.ZG_CHAIN_ID !== 16602)
     log.warn(`PROD-GUARD: ZG_CHAIN_ID=${cfg.ZG_CHAIN_ID} is neither 0G testnet (16602) nor mainnet (16661).`);
+  // 0G Compute provider/RPC coherence. The default provider+RPC are the
+  // testnet TeeML node; on mainnet they must be repointed or sealed inference
+  // will route to (or settle on) the wrong network.
+  const TESTNET_COMPUTE_PROVIDER = "0x69eb5a0bd7d0f4bf39ed5ce9bd3376c61863ae08";
+  if (onMainnet && cfg.ZG_COMPUTE_PROVIDER_ADDRESS.toLowerCase() === TESTNET_COMPUTE_PROVIDER)
+    log.warn("PROD-GUARD: mainnet chain but ZG_COMPUTE_PROVIDER_ADDRESS is the testnet provider. Set the mainnet provider from https://pc.0g.ai (e.g. Qwen3-VL-30B).");
+  if (onMainnet && cfg.ZG_COMPUTE_RPC_URL.includes("testnet"))
+    log.warn("PROD-GUARD: mainnet chain but ZG_COMPUTE_RPC_URL is a testnet endpoint — set https://evmrpc.0g.ai.");
+  if (!onMainnet && !cfg.ZG_COMPUTE_RPC_URL.includes("testnet"))
+    log.warn("PROD-GUARD: testnet chain but ZG_COMPUTE_RPC_URL points at mainnet — broker settlement will use mainnet 0G.");
 }
 
 async function main() {
