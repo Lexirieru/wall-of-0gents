@@ -1,13 +1,14 @@
 import type { Hex } from 'viem'
 
-// ─── Deployed addresses on 0G Galileo (chainId 16602) ─────────────────────
+// ─── Deployed addresses on 0G MAINNET (chainId 16661) ─────────────────────
+// `mockUsdc` key kept for call-site compat — value is the REAL USDC.e.
 export const CONTRACTS = {
-  agentNft:       '0x4ce1D1E0e9C769221E03e661abBf043cceD84F1f' as Hex,
-  fractionalizer: '0x2c3a47fdF42a795196C80FFf1775920e562284B4' as Hex,
-  registry:       '0xE26bAFF16B7c6119A05a3D65cf499DE321F67BAB' as Hex,
-  market:         '0x55D7Af35752065C381Af13a5DcDA86e5Fe3f4045' as Hex,
-  mockUsdc:       '0x0d837aD954F4f9F06E303A86150ad0F322Ec5EB1' as Hex,
-  factory:        '0xE370EeAf593B1c0F0a3cc22df0D3b712c4DC5817' as Hex,
+  agentNft:       '0x19f1021fF79B7428D4b5618338B02A20aCaD00b9' as Hex,
+  fractionalizer: '0xe5959e5C96348a2275A93630b34cB37571d6C2E7' as Hex,
+  registry:       '0xd1Ac9b80A872E8891318A3F6d551055EED399E03' as Hex,
+  market:         '0x9B9D66405CDcAdbe5d1F300f67A1F89460e4C364' as Hex,
+  mockUsdc:       '0x1f3AA82227281cA364bFb3d253B0f1af1Da6473E' as Hex,
+  factory:        '0x61638a3bb5449F6dB92EB9B81d858c96cb09Bf21' as Hex,
 } as const
 
 // ─── WallAgentNFT ──────────────────────────────────────────────────────────
