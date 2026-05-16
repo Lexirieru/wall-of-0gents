@@ -1385,7 +1385,7 @@ export default function LaunchPage() {
   const [archetypeId, setArchetypeId] = useState<string | null>(null)
   const [ticker, setTicker] = useState('')
   const [description, setDescription] = useState('')
-  const [price, setPrice] = useState('0.10')
+  const [price, setPrice] = useState('0.0004')
   const [ipoPrice, setIpoPrice] = useState('0.01')
   const [ipoAllocation, setIpoAllocation] = useState('200000')
   const [ipoDays, setIpoDays] = useState('30')
