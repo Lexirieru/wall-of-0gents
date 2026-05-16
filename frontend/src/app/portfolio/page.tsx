@@ -161,7 +161,7 @@ export default function PortfolioPage() {
         {holdings.length > 0 && (
           <div className="panel" style={{ marginBottom: 48 }}>
             <div className="panel-head">Agent Holdings</div>
-            <table className="tbl">
+            <div className="tbl-scroll"><table className="tbl cols-6">
               <thead>
                 <tr>
                   <th>Agent</th>
@@ -203,13 +203,13 @@ export default function PortfolioPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           </div>
         )}
 
         {/* NFT Ownership note */}
         <p className="section-h">How It Works</p>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: 'var(--hair)', marginBottom: 48 }}>
+        <div className="r-grid-2" style={{ gap: 1, background: 'var(--hair)', marginBottom: 48 }}>
           <div className="panel" style={{ padding: 16 }}>
             <div className="pill" style={{ marginBottom: 10, fontSize: 9 }}>AgentShare ERC-20</div>
             <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-2)', lineHeight: 1.6, margin: 0 }}>

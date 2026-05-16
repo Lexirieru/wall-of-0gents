@@ -34,7 +34,7 @@ export default async function HomePage() {
     <>
       {/* Hero */}
       <div className="hero-banner">
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 32, alignItems: 'start' }}>
+        <div className="r-main-aside s320" style={{ gap: 32 }}>
           <div>
             <p className="pill ok" style={{ marginBottom: 12 }}>LIVE · 0G GALILEO TESTNET</p>
             <h1 className="hero-h1">WALL OF 0GENTS</h1>
@@ -63,7 +63,7 @@ export default async function HomePage() {
       </div>
 
       {/* Live stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, background: 'var(--hair)', marginBottom: 40 }}>
+      <div className="r-grid-auto" style={{ gap: 1, background: 'var(--hair)', marginBottom: 40 }}>
         {[
           { label: 'Agents Listed', value: String(agents.length), sub: 'on 0G Galileo' },
           { label: 'Calls Today', value: String(totalCalls), sub: 'via x402 inference' },
@@ -85,7 +85,7 @@ export default async function HomePage() {
             see all {agents.length} →
           </Link>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(featured.length, 3)}, 1fr)`, gap: 1, background: 'var(--hair)' }}>
+        <div className="r-grid-auto-wide" style={{ gap: 1, background: 'var(--hair)' }}>
           {featured.map(agent => (
             <div key={agent.ticker} className="panel" style={{ padding: '16px 18px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
@@ -95,7 +95,7 @@ export default async function HomePage() {
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', marginBottom: 4 }}>
                 {agent.ensName || shortAddr(agent.owner)}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, margin: '12px 0' }}>
+              <div className="r-grid-2" style={{ gap: 4, margin: '12px 0' }}>
                 <div>
                   <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--mute)', marginBottom: 2 }}>SHARE PRICE</div>
                   <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: agent.pricePerShareUsdc === '—' ? 'var(--mute)' : 'var(--fg)' }}>
@@ -117,7 +117,7 @@ export default async function HomePage() {
 
       {/* Protocol highlights */}
       <p className="section-h">The Protocol</p>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, background: 'var(--hair)', marginBottom: 40 }}>
+      <div className="r-grid-auto" style={{ gap: 1, background: 'var(--hair)', marginBottom: 40 }}>
         {[
           {
             num: '01',
@@ -151,7 +151,7 @@ export default async function HomePage() {
 
       {/* How it works */}
       <p className="section-h">How It Works</p>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: 'var(--hair)', marginBottom: 48 }}>
+      <div className="r-grid-2" style={{ gap: 1, background: 'var(--hair)', marginBottom: 48 }}>
         <div className="panel" style={{ padding: 20 }}>
           <div className="pill ok" style={{ marginBottom: 12 }}>For Creators</div>
           <p style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg-2)', lineHeight: 1.6 }}>

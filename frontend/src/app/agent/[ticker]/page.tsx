@@ -82,7 +82,7 @@ export default async function AgentPage({ params }: { params: Promise<{ ticker: 
       </div>
 
       {/* Stats strip */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 1, background: 'var(--hair)', margin: '24px 0' }}>
+      <div className="r-grid-4" style={{ gap: 1, background: 'var(--hair)', margin: '24px 0' }}>
         {hasIpo
           ? <IpoSold ipoAddress={factoryLaunch!.ipo as `0x${string}`} />
           : (
@@ -114,7 +114,7 @@ export default async function AgentPage({ params }: { params: Promise<{ ticker: 
       </div>
 
       {/* Main content */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 24 }}>
+      <div className="r-main-aside s300" style={{ gap: 24 }}>
         {/* Tabs: Call / Buy Shares / Bid NFT */}
         <AgentTabs
           ticker={agent.ticker}

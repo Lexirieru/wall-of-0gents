@@ -23,7 +23,7 @@ export default async function MarketsPage() {
       </div>
 
       {/* Stats strip */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, background: 'var(--hair)', marginBottom: 24 }}>
+      <div className="r-grid-auto" style={{ gap: 1, background: 'var(--hair)', marginBottom: 24 }}>
         <div className="stat">
           <div className="label">Agents Listed</div>
           <div className="value">{agents.length}</div>
@@ -44,7 +44,7 @@ export default async function MarketsPage() {
       {/* Table */}
       <div className="panel" style={{ marginBottom: 48 }}>
         <div className="panel-head">All Agents</div>
-        <table className="tbl">
+        <div className="tbl-scroll"><table className="tbl">
           <thead>
             <tr>
               <th>Ticker</th>
@@ -75,7 +75,7 @@ export default async function MarketsPage() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       </div>
 
       <div style={{ textAlign: 'center', paddingBottom: 24 }}>
