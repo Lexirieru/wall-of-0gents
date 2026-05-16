@@ -3,7 +3,22 @@ import { log } from "./log.js";
 import { createServer, recoverPendingCalls } from "./http/server.js";
 import { dynamicRegistry } from "./store/dynamic-registry.js";
 import { closeDb } from "./store/db.js";
-import { operatorAccount } from "./chain/clients.js";
+import { operatorAccount, receiptSigner } from "./chain/clients.js";
+
+const TESTNET_MOCK_USDC = "0x0d837ad954f4f9f06e303a86150ad0f322ec5eb1";
+
+// Loud production-readiness rails. None of these are fatal on testnet, but a
+// mainnet deployment must clear all of them.
+function productionGuards() {
+  if (cfg.PAYMENT_ASSET.toLowerCase() === TESTNET_MOCK_USDC)
+    log.warn("PROD-GUARD: PAYMENT_ASSET is the testnet MockUSDC (permissionless mint). Set real USDC for mainnet.");
+  if (receiptSigner.address.toLowerCase() === operatorAccount.address.toLowerCase())
+    log.warn("PROD-GUARD: receipt signer == operator key (L1). Set RECEIPT_SIGNER_PRIVATE_KEY to a separate low-priv key for mainnet.");
+  if (cfg.CORS_ORIGINS.trim() === "*")
+    log.warn("PROD-GUARD: CORS is wildcard '*'. Set CORS_ORIGINS to an allowlist for mainnet.");
+  if (cfg.X402_MIN_CONFIRMATIONS < 3)
+    log.warn(`PROD-GUARD: X402_MIN_CONFIRMATIONS=${cfg.X402_MIN_CONFIRMATIONS} (reorg risk). Use >=3 for mainnet value.`);
+}
 
 async function main() {
   log.info("starting Wall of 0gents operator node", {
@@ -11,6 +26,7 @@ async function main() {
     httpPort: cfg.HTTP_PORT,
     compute: `${cfg.COMPUTE_BACKEND} @ ${cfg.COMPUTE_BASE_URL}`,
   });
+  productionGuards();
 
   await dynamicRegistry.init();
   await recoverPendingCalls();

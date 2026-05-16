@@ -13,6 +13,8 @@ export interface CallRow {
   createdAt: number;
   updatedAt: number;
   attempts: number;
+  /** Bearer secret returned only to the payer; required to poll the result. */
+  pollToken: string;
 }
 
 /**
@@ -26,11 +28,12 @@ export function createPendingCall(p: {
   tokenId: bigint;
   subscriber: string;
   prompt: string;
+  pollToken: string;
 }): void {
   const now = Date.now();
   getDb().run(
-    "INSERT OR REPLACE INTO calls (callId,txHash,tokenId,subscriber,prompt,status,error,createdAt,updatedAt,attempts) VALUES (?,?,?,?,?,?,?,?,?,0)",
-    [p.callId, p.txHash, p.tokenId.toString(), p.subscriber.toLowerCase(), p.prompt, "pending", null, now, now],
+    "INSERT OR REPLACE INTO calls (callId,txHash,tokenId,subscriber,prompt,status,error,createdAt,updatedAt,attempts,pollToken) VALUES (?,?,?,?,?,?,?,?,?,0,?)",
+    [p.callId, p.txHash, p.tokenId.toString(), p.subscriber.toLowerCase(), p.prompt, "pending", null, now, now, p.pollToken],
   );
 }
 

@@ -43,6 +43,9 @@ const Cfg = z.object({
   // On-chain read cache TTL for WallRegistry.info (ms)
   AGENT_INFO_CACHE_TTL_MS: z.coerce.number().int().positive().default(60_000),
 
+  // CORS: "*" (default, testnet) or a comma-separated origin allowlist (prod).
+  CORS_ORIGINS: z.string().default("*"),
+
   // Server
   HTTP_PORT: z.coerce.number().default(8402),
 

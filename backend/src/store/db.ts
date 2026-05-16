@@ -46,7 +46,8 @@ export function getDb(): Database {
       error      TEXT,
       createdAt  INTEGER NOT NULL,
       updatedAt  INTEGER NOT NULL,
-      attempts   INTEGER NOT NULL DEFAULT 0
+      attempts   INTEGER NOT NULL DEFAULT 0,
+      pollToken  TEXT NOT NULL DEFAULT ''
     );
     CREATE INDEX IF NOT EXISTS idx_calls_status ON calls(status);
 
@@ -66,6 +67,9 @@ export function getDb(): Database {
   const callCols = db.query("PRAGMA table_info(calls)").all() as { name: string }[];
   if (callCols.length > 0 && !callCols.some((c) => c.name === "attempts")) {
     db.run("ALTER TABLE calls ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0");
+  }
+  if (callCols.length > 0 && !callCols.some((c) => c.name === "pollToken")) {
+    db.run("ALTER TABLE calls ADD COLUMN pollToken TEXT NOT NULL DEFAULT ''");
   }
 
   _db = db;

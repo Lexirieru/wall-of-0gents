@@ -32,6 +32,7 @@ interface PendingCall {
   result?: unknown;
   error?: string;
   expiresAt: number;
+  pollToken: string;
 }
 const calls = new Map<string, PendingCall>();
 
@@ -46,8 +47,49 @@ function err(msg: string, status = 400) {
   return json({ error: msg }, status);
 }
 
-function cors(res: Response): Response {
-  res.headers.set("Access-Control-Allow-Origin", "*");
+// Read+parse a JSON body while hard-capping bytes AS THEY STREAM (not just via
+// Content-Length, which a chunked client can omit). Returns null on
+// oversize/parse-fail so handlers reject with their normal 400.
+async function readJsonCapped(req: Request, max: number): Promise<unknown | null> {
+  const reader = req.body?.getReader();
+  if (!reader) {
+    try {
+      return await req.json();
+    } catch {
+      return null;
+    }
+  }
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > max) {
+        await reader.cancel();
+        return null;
+      }
+      chunks.push(value);
+    }
+    return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  } catch {
+    return null;
+  }
+}
+
+const CORS_WILDCARD = cfg.CORS_ORIGINS.trim() === "*";
+const CORS_ALLOW = new Set(
+  cfg.CORS_ORIGINS.split(",").map((o) => o.trim()).filter(Boolean),
+);
+
+function cors(res: Response, origin?: string | null): Response {
+  if (CORS_WILDCARD) {
+    res.headers.set("Access-Control-Allow-Origin", "*");
+  } else if (origin && CORS_ALLOW.has(origin)) {
+    res.headers.set("Access-Control-Allow-Origin", origin);
+    res.headers.set("Vary", "Origin");
+  }
   res.headers.set("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS");
   res.headers.set("Access-Control-Allow-Headers", "Content-Type,Authorization");
   return res;
@@ -193,8 +235,13 @@ function startInference(p: {
   subscriber: `0x${string}`;
   prompt: string;
   txHash: string;
+  pollToken: string;
 }) {
-  const mem: PendingCall = { status: "pending", expiresAt: Date.now() + 10 * 60_000 };
+  const mem: PendingCall = {
+    status: "pending",
+    expiresAt: Date.now() + 10 * 60_000,
+    pollToken: p.pollToken,
+  };
   calls.set(p.callId, mem);
   void executeCall(p).then((out) => {
     if ("error" in out) {
@@ -232,13 +279,14 @@ export async function recoverPendingCalls() {
       subscriber: c.subscriber as `0x${string}`,
       prompt: c.prompt,
       txHash: c.txHash ?? "",
+      pollToken: c.pollToken,
     });
   }
   if (recovered > 0) log.warn("recovering orphaned paid calls", { count: recovered });
 }
 
 async function handleInfer(req: Request): Promise<Response> {
-  const raw = await req.json().catch(() => null);
+  const raw = await readJsonCapped(req, 64 * 1024);
   const parsed = InferSchema.safeParse(raw);
   if (!parsed.success) return err(parsed.error.issues[0]?.message ?? "invalid request");
   const { tokenId: tokenIdStr, txHash, prompt, subscriber } = parsed.data;
@@ -280,14 +328,24 @@ async function handleInfer(req: Request): Promise<Response> {
   }
 
   // Persist call state BEFORE running so a crash can't lose a paid call.
+  // pollToken is a bearer secret returned ONLY here (to the payer) — required
+  // to read the result, so a known callId alone can't leak another user's
+  // inference output/receipt (council R2 IDOR).
   const callId = randomUUID();
-  createPendingCall({ callId, txHash, tokenId, subscriber, prompt });
-  startInference({ callId, tokenId, subscriber: subscriber as `0x${string}`, prompt, txHash });
+  const pollToken = randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "");
+  createPendingCall({ callId, txHash, tokenId, subscriber, prompt, pollToken });
+  startInference({ callId, tokenId, subscriber: subscriber as `0x${string}`, prompt, txHash, pollToken });
 
-  return json({ callId, status: "pending" }, 202);
+  return json({ callId, pollToken, status: "pending" }, 202);
 }
 
-function handlePollCall(callId: string): Response {
+function handlePollCall(callId: string, token: string): Response {
+  // The caller must present the bearer token bound to this call. A wrong /
+  // missing token is indistinguishable from "not found" (no existence oracle).
+  const expectedToken = calls.get(callId)?.pollToken ?? getCall(callId)?.pollToken;
+  if (!expectedToken || token.length === 0 || token !== expectedToken)
+    return err("call not found", 404);
+
   const mem = calls.get(callId);
   if (mem) {
     if (mem.status === "pending") return json({ callId, status: "pending" });
@@ -331,7 +389,7 @@ async function handleProfile(tokenIdStr: string): Promise<Response> {
 }
 
 async function handleRegister(req: Request): Promise<Response> {
-  const raw = await req.json().catch(() => null);
+  const raw = await readJsonCapped(req, 64 * 1024);
   const parsed = RegisterSchema.safeParse(raw);
   if (!parsed.success) return err(parsed.error.issues[0]?.message ?? "invalid request");
   const b = parsed.data;
@@ -377,7 +435,7 @@ async function handleRegister(req: Request): Promise<Response> {
 }
 
 async function handleTest(req: Request): Promise<Response> {
-  const raw = await req.json().catch(() => null);
+  const raw = await readJsonCapped(req, 64 * 1024);
   const parsed = TestSchema.safeParse(raw);
   if (!parsed.success) return err(parsed.error.issues[0]?.message ?? "invalid request");
   const tokenId = BigInt(parsed.data.tokenId);
@@ -449,8 +507,9 @@ export function createServer() {
       const path = url.pathname;
       const reqId = randomUUID().slice(0, 8);
       const started = Date.now();
+      const origin = req.headers.get("origin");
 
-      if (req.method === "OPTIONS") return cors(new Response(null, { status: 204 }));
+      if (req.method === "OPTIONS") return cors(new Response(null, { status: 204 }), origin);
 
       // Body-size cap (council R2): req.json() buffers the whole body in
       // memory before zod ever runs, so an unbounded POST is a memory/disk
@@ -459,7 +518,7 @@ export function createServer() {
       if (req.method === "POST") {
         const max = path === "/og-storage/pin" ? 512 * 1024 : 64 * 1024;
         const len = Number(req.headers.get("content-length") ?? "0");
-        if (len > max) return cors(err("request body too large", 413));
+        if (len > max) return cors(err("request body too large", 413), origin);
       }
 
       const ip = clientIp(req, server);
@@ -470,7 +529,8 @@ export function createServer() {
           res = rateLimited(ip, "infer") ? err("rate limit exceeded", 429) : await handleInfer(req);
         } else if (req.method === "GET" && path.startsWith("/x402/calls/")) {
           const callId = path.split("/x402/calls/")[1];
-          res = callId ? handlePollCall(callId) : err("call not found", 404);
+          const token = url.searchParams.get("t") ?? "";
+          res = callId ? handlePollCall(callId, token) : err("call not found", 404);
         } else if (req.method === "GET" && path.startsWith("/profile/")) {
           res = await handleProfile(path.split("/profile/")[1] ?? "");
         } else if (req.method === "GET" && path === "/agents") {
@@ -484,7 +544,7 @@ export function createServer() {
         } else if (req.method === "POST" && path === "/og-storage/pin") {
           if (rateLimited(ip, "storage")) res = err("rate limit exceeded", 429);
           else {
-            const body = await req.json().catch(() => null);
+            const body = await readJsonCapped(req, 512 * 1024);
             if (body == null || typeof body !== "object") res = err("invalid JSON object");
             else res = json({ hash: await pinJson(body) });
           }
@@ -525,7 +585,7 @@ export function createServer() {
         ms: Date.now() - started,
         ip,
       });
-      return cors(res);
+      return cors(res, origin);
     },
   });
 }
