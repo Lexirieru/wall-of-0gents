@@ -41,8 +41,8 @@ export default async function MarketsPage() {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="panel" style={{ marginBottom: 48 }}>
+      {/* Table — desktop */}
+      <div className="panel markets-tbl" style={{ marginBottom: 48 }}>
         <div className="panel-head">All Agents</div>
         <div className="tbl-scroll"><table className="tbl">
           <thead>
@@ -76,6 +76,27 @@ export default async function MarketsPage() {
             ))}
           </tbody>
         </table></div>
+      </div>
+
+      {/* Cards — mobile */}
+      <div className="panel markets-cards" style={{ marginBottom: 48 }}>
+        <div className="panel-head">All Agents</div>
+        {agents.map(agent => (
+          <Link key={agent.ticker} href={`/agent/${agent.ticker}`} style={{ textDecoration: 'none', display: 'block' }}>
+            <div className="markets-card">
+              <div className="markets-card-top">
+                <span className="ticker">{agent.ticker}</span>
+                <span className="pill" style={{ marginLeft: 8 }}>{agent.runtime}</span>
+                <span className="markets-card-arrow">▸</span>
+              </div>
+              <div className="markets-card-sub">
+                <span>{agent.pricePerShareUsdc === '—' ? <span className="mute">$—</span> : `$${agent.pricePerShareUsdc}`}</span>
+                <span className="mute"> · </span>
+                <span className="mute">{agent.callsToday} call{agent.callsToday !== 1 ? 's' : ''} today</span>
+              </div>
+            </div>
+          </Link>
+        ))}
       </div>
 
       <div style={{ textAlign: 'center', paddingBottom: 24 }}>
