@@ -410,7 +410,7 @@ function ArchetypeStep({
 function IdentityStep({
   archetypeId, ticker, setTicker, description, setDescription,
   price, setPrice, operatorUrl, setOperatorUrl,
-  runtime, setRuntime,
+  runtime, setRuntime, model, setModel,
   systemPrompt, setSystemPrompt,
   skills, setSkills,
   ipoPrice, setIpoPrice, ipoAllocation, setIpoAllocation, ipoDays, setIpoDays,
@@ -422,6 +422,7 @@ function IdentityStep({
   price: string; setPrice: (v: string) => void
   operatorUrl: string; setOperatorUrl: (v: string) => void
   runtime: string; setRuntime: (v: string) => void
+  model: string; setModel: (v: string) => void
   systemPrompt: string; setSystemPrompt: (v: string) => void
   skills: Skill[]; setSkills: (v: Skill[]) => void
   ipoPrice: string; setIpoPrice: (v: string) => void
@@ -475,13 +476,14 @@ function IdentityStep({
     ['archetype', archetypeId],
     ['price', price ? `$${price} USDC / call` : '—'],
     ['runtime', runtime],
+    ['model', model || '—'],
     ['chain', '0G Mainnet (16661)'],
     ['─ tools', `(${archetype.toolCount})`],
     ...archetype.tools.map(t => [`  › ${t.toLowerCase()}`, '']),
     ['─ artifacts', ''],
     ['  manifest hash', '(computed at mint)'],
     ['  token id', '(at mint time)'],
-  ], [ticker, archetypeId, price, runtime, archetype])
+  ], [ticker, archetypeId, price, runtime, model, archetype])
 
   const addSkill = () => {
     setSkills([...skills, { id: String(Date.now()), name: '', desc: '' }])
@@ -500,15 +502,35 @@ function IdentityStep({
       id: '0g-ai',
       label: '0G COMPUTE',
       badge: 'TEE',
-      desc: 'Runs directly on 0G Mainnet inside a secure enclave. Responses are signed on-chain so anyone can verify the agent wasn\'t tampered with.',
+      desc: 'Runs on 0G Compute Router inside a TEE enclave (TDX attestation). Responses are cryptographically verifiable on-chain. Models: DeepSeek, Qwen, GLM.',
     },
     {
-      id: 'venice',
-      label: 'VENICE',
+      id: 'openai-compat',
+      label: 'OPENROUTER',
       badge: 'HOSTED',
-      desc: 'Routes through Venice — pick from qwen, claude, llama, gemma and more. Faster to set up, lower cost per call. No on-chain signing.',
+      desc: 'Routes via OpenRouter — access Gemini, DeepSeek, Llama, and 200+ models. Fast setup, lower per-call cost. Off-chain, no TEE attestation.',
     },
   ]
+
+  const ZG_MODELS = [
+    { value: 'qwen/qwen3-vl-30b-a3b-instruct', label: 'Qwen3-VL-30B · TEE Verified' },
+    { value: 'deepseek/deepseek-chat-v3-0324', label: 'DeepSeek V3' },
+    { value: 'deepseek-v4-pro', label: 'DeepSeek V4 Pro' },
+    { value: '0GM-1.0-35B-A3B', label: '0GM-1.0-35B-A3B' },
+    { value: 'qwen3.6-plus', label: 'Qwen3.6 Plus' },
+    { value: 'zai-org/GLM-5-FP8', label: 'GLM-5 FP8' },
+    { value: 'zai-org/GLM-5.1-FP8', label: 'GLM-5.1 FP8' },
+    { value: 'openai/gpt-5.4-mini', label: 'GPT-5.4 Mini' },
+  ]
+
+  const OPENROUTER_MODELS = [
+    { value: 'google/gemini-2.0-flash-lite-001', label: 'Gemini 2.0 Flash Lite' },
+    { value: 'google/gemini-2.0-flash-001', label: 'Gemini 2.0 Flash' },
+    { value: 'deepseek/deepseek-chat-v3-0324', label: 'DeepSeek V3' },
+    { value: 'meta-llama/llama-4-scout', label: 'Llama 4 Scout' },
+  ]
+
+  const modelOptions = runtime === '0g-ai' ? ZG_MODELS : OPENROUTER_MODELS
 
   return (
     <div style={{ paddingBottom: 100 }}>
@@ -732,7 +754,10 @@ function IdentityStep({
             return (
               <div
                 key={opt.id}
-                onClick={() => setRuntime(opt.id)}
+                onClick={() => {
+                  setRuntime(opt.id)
+                  setModel(opt.id === '0g-ai' ? 'qwen/qwen3-vl-30b-a3b-instruct' : 'google/gemini-2.0-flash-lite-001')
+                }}
                 role="button"
                 tabIndex={0}
                 onKeyDown={e => e.key === 'Enter' && setRuntime(opt.id)}
@@ -780,6 +805,42 @@ function IdentityStep({
             )
           })}
         </div>
+      </div>
+
+      {/* ── MODEL PICKER ── */}
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', letterSpacing: '0.08em', marginBottom: 8 }}>
+          MODEL
+        </div>
+        {runtime === '0g-ai' ? (
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-2)', padding: '10px 14px', border: '1px solid var(--hair)', background: '#080808', maxWidth: 380 }}>
+            <span style={{ color: 'var(--accent)' }}>● </span>
+            determined by TEE provider on-chain
+            <div style={{ fontSize: 10, color: 'var(--mute)', marginTop: 4 }}>
+              model + endpoint fetched from 0G chain at runtime via broker
+            </div>
+          </div>
+        ) : (
+          <>
+            <select
+              value={model}
+              onChange={e => setModel(e.target.value)}
+              style={{
+                width: '100%', maxWidth: 380, background: '#080808', border: '1px solid var(--hair)',
+                outline: 'none', fontFamily: 'var(--font-mono)', fontSize: 12,
+                color: 'var(--fg)', padding: '10px 14px', cursor: 'pointer',
+                appearance: 'none', WebkitAppearance: 'none',
+              }}
+            >
+              {modelOptions.map(m => (
+                <option key={m.value} value={m.value}>{m.label}</option>
+              ))}
+            </select>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', marginTop: 4 }}>
+              OpenRouter hosted inference
+            </div>
+          </>
+        )}
       </div>
 
       {/* ── DIRECTIVE FILE ── */}
@@ -1103,10 +1164,12 @@ function ReviewStep({
 // ─── Step 04: Launch (1-tx factory) + Register ─────────────────────────────
 function ListStep({
   ticker, tokenId, txHash, description, price, archetypeId, operatorUrl,
+  runtime, model,
   systemPrompt, skills: _skills, ipoPrice, ipoAllocation, ipoDays,
 }: {
   ticker: string; tokenId: string; txHash: string
   description: string; price: string; archetypeId: string; operatorUrl: string
+  runtime: string; model: string
   systemPrompt: string; skills: Skill[]
   ipoPrice: string; ipoAllocation: string; ipoDays: string
 }) {
@@ -1215,9 +1278,9 @@ function ListStep({
       name: `${ticker.toUpperCase()} Agent`,
       description: description || archetypeId,
       systemPrompt: systemPrompt || `You are ${ticker.toUpperCase()}, an AI agent on Wall of 0Gents. Your archetype is ${archetypeId}.`,
-      model: 'google/gemini-2.0-flash-lite-001',
+      model: model || (runtime === '0g-ai' ? 'qwen/qwen3-vl-30b-a3b-instruct' : 'google/gemini-2.0-flash-lite-001'),
       priceUsdc,
-      runtime: '0g-ai',
+      runtime: runtime || '0g-ai',
       shareToken: shareToken || undefined,
       operatorUrl: operatorUrl || undefined,
     }
@@ -1397,6 +1460,7 @@ export default function LaunchPage() {
   const [operatorUrl, setOperatorUrl] = useState('')
 
   const [runtime, setRuntime] = useState('0g-ai')
+  const [model, setModel] = useState('qwen/qwen3-vl-30b-a3b-instruct')
   const [systemPrompt, setSystemPrompt] = useState('')
   const [skills, setSkills] = useState<Skill[]>([])
 
@@ -1447,6 +1511,7 @@ export default function LaunchPage() {
           price={price} setPrice={setPrice}
           operatorUrl={operatorUrl} setOperatorUrl={setOperatorUrl}
           runtime={runtime} setRuntime={setRuntime}
+          model={model} setModel={setModel}
           systemPrompt={systemPrompt} setSystemPrompt={setSystemPrompt}
           skills={skills} setSkills={setSkills}
           ipoPrice={ipoPrice} setIpoPrice={setIpoPrice}
@@ -1473,6 +1538,7 @@ export default function LaunchPage() {
           ticker={ticker} tokenId={mintedId} txHash={mintedHash}
           description={description} price={price}
           archetypeId={archetypeId ?? ''} operatorUrl={operatorUrl}
+          runtime={runtime} model={model}
           systemPrompt={systemPrompt} skills={skills}
           ipoPrice={ipoPrice} ipoAllocation={ipoAllocation} ipoDays={ipoDays}
         />

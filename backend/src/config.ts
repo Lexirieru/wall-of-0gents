@@ -43,6 +43,16 @@ const Cfg = z.object({
   COMPUTE_MAX_RETRIES: z.coerce.number().int().min(0).default(1),
   ZG_COMPUTE_PROVIDER_ADDRESS: z.string().startsWith("0x").default("0x69Eb5a0BD7d0f4bF39eD5CE9Bd3376c61863aE08"),
 
+  // 0G Compute broker RPC — mainnet for prod-grade TeeML providers
+  // (DeepSeek V3, Qwen3-VL-30B, GLM-5.1, etc). Separate from ZG_RPC_URL
+  // because our contracts can be on testnet while compute runs on mainnet.
+  ZG_COMPUTE_RPC_URL: z.string().url().default("https://evmrpc.0g.ai"),
+
+  // 0G Storage indexer — leave empty to use local-file fallback
+  ZG_STORAGE_INDEXER_URL: z.string().url().optional(),
+  // Optional separate key for 0G Storage uploads; falls back to OPERATOR_PRIVATE_KEY
+  ZG_STORAGE_PRIVATE_KEY: z.string().startsWith("0x").optional(),
+
   // On-chain read cache TTL for WallRegistry.info (ms)
   AGENT_INFO_CACHE_TTL_MS: z.coerce.number().int().positive().default(60_000),
 
