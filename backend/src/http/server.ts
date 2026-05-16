@@ -13,7 +13,7 @@ import {
 } from "../chain/clients.js";
 import { getRuntimeFor } from "../runtime/index.js";
 import { priceFor } from "../runtime/pricing.js";
-import { queryReceipts, getReceipt, countCallsToday } from "../store/receipts.js";
+import { queryReceipts, queryReceiptsPublic, getReceipt, countCallsToday } from "../store/receipts.js";
 import { dynamicRegistry, type AgentEntry } from "../store/dynamic-registry.js";
 import { consumePayment, PaymentReplayError } from "../store/payments.js";
 import { consumeRegisterSig, RegisterReplayError } from "../store/register-sigs.js";
@@ -546,6 +546,11 @@ export function createServer() {
           } else {
             res = json({ callsToday: countCallsToday(tokenId) });
           }
+        } else if (req.method === "GET" && path === "/receipts/public") {
+          // Public, non-sensitive per-token activity (markets feed). No content.
+          const tokenId = url.searchParams.get("tokenId") ?? undefined;
+          if (tokenId && !/^\d+$/.test(tokenId)) res = err("invalid tokenId");
+          else res = json(queryReceiptsPublic(tokenId));
         } else if (req.method === "GET" && path === "/receipts") {
           res = await handleReceipts(url);
         } else if (req.method === "POST" && path === "/og-storage/pin") {

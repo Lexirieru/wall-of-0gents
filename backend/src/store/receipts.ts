@@ -23,12 +23,41 @@ export function queryReceipts(tokenId?: string, subscriber?: string, limit = 50)
   return rows.map((r) => JSON.parse(r.receipt));
 }
 
+// `ts` column = receipt.timestamp = Date.now() (MILLISECONDS). The 24h cutoff
+// must therefore be in ms too — comparing to a seconds cutoff (the original
+// upstream bug, INT-2) made this count ALL-TIME instead of "today".
 export function countCallsToday(tokenId: string): number {
-  const cutoff = Math.floor(Date.now() / 1000) - 86400
+  const cutoff = Date.now() - 86_400_000;
   const row = getDb()
     .query("SELECT COUNT(*) as n FROM receipts WHERE tokenId=? AND ts > ?")
-    .get(tokenId, cutoff) as { n: number } | null
-  return row?.n ?? 0
+    .get(tokenId, cutoff) as { n: number } | null;
+  return row?.n ?? 0;
+}
+
+export interface PublicReceipt {
+  tokenId: string;
+  subscriber: string;
+  timestamp: number;
+}
+
+/**
+ * Non-sensitive per-token activity feed: tokenId, payer, timestamp ONLY.
+ * No prompt / response / outputHash / signature. Powers the public
+ * markets "calls" map + activity feed without leaking inference content
+ * (the full receipt read stays signature-gated — M3).
+ */
+export function queryReceiptsPublic(tokenId?: string, limit = 200): PublicReceipt[] {
+  let sql = "SELECT tokenId, subscriber, ts FROM receipts WHERE 1=1";
+  const params: string[] = [];
+  if (tokenId) { sql += " AND tokenId=?"; params.push(tokenId); }
+  sql += " ORDER BY ts DESC LIMIT ?";
+  params.push(limit.toString());
+  const rows = getDb().query(sql).all(...params) as {
+    tokenId: string;
+    subscriber: string;
+    ts: number;
+  }[];
+  return rows.map((r) => ({ tokenId: r.tokenId, subscriber: r.subscriber, timestamp: r.ts }));
 }
 
 export function getReceipt(callId: string): StoredReceipt | null {
