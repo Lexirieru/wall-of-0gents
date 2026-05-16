@@ -643,7 +643,7 @@ function IdentityStep({
                 </span>
               </div>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', marginTop: 4 }}>
-                harga tiap share saat IPO
+                price per share at IPO
               </div>
             </div>
 
@@ -693,7 +693,7 @@ function IdentityStep({
                 <option value="90">90 days</option>
               </select>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', marginTop: 4 }}>
-                window beli shares publik
+                public share-buying window
               </div>
             </div>
           </div>

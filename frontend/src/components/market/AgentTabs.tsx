@@ -212,7 +212,7 @@ export function AgentTabs({ ticker, tokenId, hasIpo, isRegistered, ipoAddress, i
             )}
             {inferences.length === 0 && (
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--mute)', marginTop: 20 }}>
-                Belum ada yang mencoba — jadilah yang pertama pakai form di atas
+                No one has tried yet — be the first using the form above
               </div>
             )}
           </>

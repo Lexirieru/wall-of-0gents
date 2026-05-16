@@ -11,7 +11,7 @@ export default async function HomePage() {
   const agents = await listAgents().catch(() => FALLBACK)
   const totalCalls = agents.reduce((s, a) => s + a.callsToday, 0)
 
-  // Enrich agents dengan harga dari chain, hanya tampilkan yang punya IPO
+  // Enrich agents with on-chain prices; only show the ones that have an IPO
   const enriched = await Promise.all(
     agents.map(async agent => {
       if (agent.pricePerShareUsdc !== '—') return agent
@@ -77,7 +77,7 @@ export default async function HomePage() {
         ))}
       </div>
 
-      {/* Featured agents — hanya tampil kalau ada agent dengan IPO */}
+      {/* Featured agents — only shown when there's an agent with an IPO */}
       {featured.length > 0 && <div style={{ marginBottom: 40 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 16 }}>
           <p className="section-h" style={{ margin: 0, border: 'none', padding: 0 }}>Live Agents</p>
