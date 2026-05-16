@@ -1019,3 +1019,161 @@ body {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* ================================
+ * Responsive Overrides
+ * Mobile-first breakpoints (max-width, desktop base)
+ * ≤1024px tablet · ≤768px tablet-portrait/touch · ≤480px phone
+ * ================================ */
+
+/* --- Responsive grid utilities ---
+ * Usage: replace inline gridTemplateColumns with className.
+ * Remove ONLY the gridTemplateColumns key from inline style; keep gap etc.
+ */
+
+/* Uniform tile rows — auto-fit collapse (no extra breakpoints needed) */
+.r-grid-auto {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
+}
+.r-grid-auto-wide {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+}
+
+/* Fixed-N grids that collapse explicitly */
+.r-grid-2 { display: grid; grid-template-columns: 1fr 1fr; }
+.r-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); }
+.r-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); }
+
+@media (max-width: 768px) {
+  .r-grid-4 { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 480px) {
+  .r-grid-2,
+  .r-grid-3,
+  .r-grid-4 { grid-template-columns: 1fr; }
+}
+
+/* Asymmetric content + sidebar — stack at ≤1024, content first */
+.r-main-aside {
+  display: grid;
+  gap: 32px;
+  align-items: start;
+}
+.r-main-aside.s320 { grid-template-columns: 1fr 320px; }
+.r-main-aside.s340 { grid-template-columns: 1fr 340px; }
+.r-main-aside.s300 { grid-template-columns: 1fr 300px; }
+.r-aside-main { display: grid; gap: 32px; align-items: start; }
+.r-aside-main.s240 { grid-template-columns: 240px 1fr; }
+
+@media (max-width: 1024px) {
+  .r-main-aside.s320,
+  .r-main-aside.s340,
+  .r-main-aside.s300,
+  .r-aside-main.s240 { grid-template-columns: 1fr; }
+}
+
+/* Key-value manifest (140px label + value) */
+.r-kv {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+}
+@media (max-width: 480px) {
+  .r-kv { grid-template-columns: 1fr; }
+}
+
+/* --- Table scroll wrapper ---
+ * Wraps wide .tbl to enable horizontal swipe on mobile.
+ */
+.tbl-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.tbl-scroll::-webkit-scrollbar { height: 6px; }
+.tbl-scroll::-webkit-scrollbar-thumb { background: var(--hair); border-radius: 3px; }
+@media (max-width: 768px) {
+  .tbl-scroll .tbl { min-width: 720px; }
+  .tbl-scroll .tbl.cols-6 { min-width: 560px; }
+}
+
+/* --- Touch targets ---
+ * Bump interactive elements on touch/small screens.
+ * In-table buttons (inline height:24) intentionally excluded.
+ */
+@media (max-width: 768px) {
+  .btn {
+    min-height: 44px;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
+
+/* --- Masthead mobile hamburger --- */
+.mob-menu-btn { display: none; }
+
+@media (max-width: 768px) {
+  .masthead-inner .topnav,
+  .masthead-inner .session { display: none; }
+  .mob-menu-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+    background: none;
+    border: 1px solid var(--hair);
+    color: var(--fg);
+    font-family: var(--font-mono);
+    font-size: 20px;
+    line-height: 1;
+    width: 36px;
+    height: 36px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .mob-menu {
+    border-top: 1px solid var(--hair);
+    background: var(--bg);
+    padding: 0 16px 16px;
+  }
+  .mob-menu a {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--mute);
+    text-decoration: none;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--hair);
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    letter-spacing: 0.04em;
+  }
+  .mob-menu a.active { color: var(--fg); }
+  .mob-menu a .nav-slash { color: var(--accent); opacity: 0.8; }
+  .mob-menu-connect { padding-top: 14px; }
+}
+@media (min-width: 769px) {
+  .mob-menu { display: none; }
+}
+
+/* --- StepBar — hide scrollbar, always one row --- */
+.step-bar { scrollbar-width: none; }
+.step-bar::-webkit-scrollbar { display: none; }
+
+/* --- Archetype header badge — hide on phone --- */
+@media (max-width: 480px) {
+  .arch-badge { display: none; }
+}
+
+/* --- Agent grid sidebar — collapse at tablet --- */
+@media (max-width: 1024px) {
+  .agent-grid { grid-template-columns: 1fr; }
+}
+
+/* --- Hero headline — allow wrap on mobile --- */
+@media (max-width: 480px) {
+  .hero-h1 { white-space: normal; }
+}
+
+/* --- TickerTape safe-area (notched phones with viewportFit:cover) --- */
+.tape-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
