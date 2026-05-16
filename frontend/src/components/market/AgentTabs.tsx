@@ -235,7 +235,7 @@ function BuyTab({ ipoAddress, ticker }: { ipoAddress: Hex; ticker: string }) {
   const { address, isConnected } = useAccount()
   const { connect } = useConnect()
   const chainId = useChainId()
-  const { switchChain } = useSwitchChain()
+  const { switchChainAsync } = useSwitchChain()
   const { writeContractAsync } = useWriteContract()
 
   const [shares, setShares] = useState('100')
@@ -274,7 +274,7 @@ function BuyTab({ ipoAddress, ticker }: { ipoAddress: Hex; ticker: string }) {
     if (!address || sharesAmount === 0n) return
     setBusy(true); setLog(''); setErr('')
     try {
-      if (!onZg) { setLog('switching to 0G Galileo...'); await switchChain({ chainId: ZG_ID }) }
+      if (!onZg) { setLog('switching to 0G Galileo...'); await switchChainAsync({ chainId: ZG_ID }) }
       setLog('1/2 approving USDC...')
       const approveTx = await writeContractAsync({
         address: CONTRACTS.mockUsdc, abi: erc20Abi, functionName: 'approve',
@@ -399,7 +399,7 @@ function BidTab({ tokenId, ticker }: { tokenId: number; ticker: string }) {
   const { address, isConnected } = useAccount()
   const { connect } = useConnect()
   const chainId = useChainId()
-  const { switchChain } = useSwitchChain()
+  const { switchChainAsync } = useSwitchChain()
   const { writeContractAsync } = useWriteContract()
 
   const [bidUsd, setBidUsd] = useState('10')
@@ -412,7 +412,7 @@ function BidTab({ tokenId, ticker }: { tokenId: number; ticker: string }) {
     if (!address) return
     setBusy(true); setLog(''); setErr('')
     try {
-      if (!onZg) { setLog('switching to 0G Galileo...'); await switchChain({ chainId: ZG_ID }) }
+      if (!onZg) { setLog('switching to 0G Galileo...'); await switchChainAsync({ chainId: ZG_ID }) }
       const price = parseUnits(bidUsd, 6)
       const expiresAt = BigInt(Math.floor(Date.now() / 1000) + 86400)
       setLog('1/2 approving USDC...')

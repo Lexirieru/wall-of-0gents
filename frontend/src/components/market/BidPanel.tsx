@@ -17,7 +17,7 @@ type Props = { tokenId: number; ticker: string }
 export function BidPanel({ tokenId, ticker }: Props) {
   const { address, isConnected } = useAccount()
   const chainId = useChainId()
-  const { switchChain } = useSwitchChain()
+  const { switchChainAsync } = useSwitchChain()
   const { writeContractAsync } = useWriteContract()
 
   const [open, setOpen] = useState(false)
@@ -34,7 +34,7 @@ export function BidPanel({ tokenId, ticker }: Props) {
     try {
       if (!onZg) {
         setLog('switching to 0G Galileo...')
-        await switchChain({ chainId: ZG_ID })
+        await switchChainAsync({ chainId: ZG_ID })
       }
 
       // Price in mockUsdc (6 decimals)
