@@ -29,7 +29,7 @@ export function BidPanel({ tokenId, ticker }: Props) {
 
     try {
       if (!onZg) {
-        setLog('switching to 0G Galileo...')
+        setLog('switching to 0G Mainnet...')
         await switchChainAsync({ chainId: ZG_ID })
       }
 
@@ -38,7 +38,7 @@ export function BidPanel({ tokenId, ticker }: Props) {
       const expiresAt = BigInt(Math.floor(Date.now() / 1000) + 86400) // 24h
 
       // Step 1: approve mockUsdc to WallMarket
-      setLog('step 1/2: approving mockUsdc...')
+      setLog('step 1/2: approving USDC.e...')
       const approveTx = await writeContractAsync({
         address: CONTRACTS.mockUsdc,
         abi: erc20Abi,
@@ -116,7 +116,7 @@ export function BidPanel({ tokenId, ticker }: Props) {
           </div>
 
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', marginBottom: 10 }}>
-            Uses mockUSDC on 0G Galileo · 24h expiry
+            Uses USDC.e on 0G Mainnet · 24h expiry
           </div>
 
           <div style={{ display: 'flex', gap: 8 }}>
