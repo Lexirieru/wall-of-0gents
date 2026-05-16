@@ -33,6 +33,9 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 !.env.example
+# Non-secret public build-time config (backend URL, RPC) — committed so the
+# deployed build always points at the right backend even without dashboard env.
+!.env.production
 
 # vercel
 .vercel
