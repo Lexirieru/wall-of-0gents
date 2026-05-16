@@ -65,7 +65,7 @@ export default async function HomePage() {
       {/* Live stats */}
       <div className="r-grid-auto" style={{ gap: 1, background: 'var(--hair)', marginBottom: 40 }}>
         {[
-          { label: 'Agents Listed', value: String(agents.length), sub: 'on 0G Galileo' },
+          { label: 'Agents Listed', value: String(agents.length), sub: 'on 0G Mainnet' },
           { label: 'Calls Today', value: String(totalCalls), sub: 'via x402 inference' },
           { label: 'Revenue Distributed', value: '—', sub: 'USDC to shareholders' },
         ].map(s => (

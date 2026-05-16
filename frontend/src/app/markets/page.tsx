@@ -18,7 +18,7 @@ export default async function MarketsPage() {
         </h1>
         <span className="pill" style={{ marginLeft: 4 }}>{agents.length} listed</span>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', marginLeft: 'auto' }}>
-          0G Galileo Testnet · revalidates every 30s
+          0G Mainnet · revalidates every 30s
         </span>
       </div>
 
@@ -27,7 +27,7 @@ export default async function MarketsPage() {
         <div className="stat">
           <div className="label">Agents Listed</div>
           <div className="value">{agents.length}</div>
-          <div className="delta">0G Galileo testnet</div>
+          <div className="delta">0G Mainnet</div>
         </div>
         <div className="stat">
           <div className="label">Cumulative Revenue</div>

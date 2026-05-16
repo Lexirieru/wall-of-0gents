@@ -67,7 +67,7 @@ export function InferenceBox({ tokenId, ticker }: Props) {
         try {
           await switchChainAsync({ chainId: challenge.chainId })
         } catch {
-          setError(`Wrong network. Switch your wallet to chain ${challenge.chainId} (0G Galileo) and retry.`)
+          setError(`Wrong network. Switch your wallet to chain ${challenge.chainId} (0G Mainnet) and retry.`)
           return
         }
       }
@@ -83,12 +83,12 @@ export function InferenceBox({ tokenId, ticker }: Props) {
 
       if (balance < minAmount) {
         setError(
-          `Insufficient MockUSDC: need ${displayAmount}, have ${formatUnits(balance, 6)}`
+          `Insufficient USDC.e: need ${displayAmount}, have ${formatUnits(balance, 6)}`
         )
         return
       }
 
-      // 3. Send MockUSDC transfer directly to vault
+      // 3. Send USDC.e transfer directly to vault
       setStatus(`Sending ${displayAmount} USDC…`)
       const txHash = await writeContractAsync({
         address: asset,
@@ -164,7 +164,7 @@ export function InferenceBox({ tokenId, ticker }: Props) {
     <div className="infer-box">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--mute)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-          {ticker} · Inference · Pay with MockUSDC
+          {ticker} · Inference · Pay with USDC.e
         </span>
         {!address && (
           <span className="pill warn">Connect wallet to run</span>

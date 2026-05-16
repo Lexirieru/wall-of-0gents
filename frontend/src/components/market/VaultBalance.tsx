@@ -31,7 +31,7 @@ export function VaultBalance({ vaultAddress }: { vaultAddress: `0x${string}` }) 
     <div className="stat">
       <div className="label">Vault Balance</div>
       <div className="value">{display}</div>
-      <div className="delta">MockUSDC claimable</div>
+      <div className="delta">USDC.e claimable</div>
     </div>
   )
 }

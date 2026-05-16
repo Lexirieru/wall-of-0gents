@@ -134,7 +134,7 @@ export default function PortfolioPage() {
         <span style={{ color: 'var(--hair)' }}>·</span>
         <span>{shortAddr(address as `0x${string}`)}</span>
         <span style={{ color: 'var(--hair)' }}>·</span>
-        <span>0G Galileo</span>
+        <span>0G Mainnet</span>
         {loading && <span style={{ marginLeft: 'auto', color: 'var(--accent)', fontSize: 10 }}>● scanning chain...</span>}
       </div>
 
@@ -143,7 +143,7 @@ export default function PortfolioPage() {
 
         {loading && !loaded && (
           <div style={{ padding: '32px 0', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--mute)' }}>
-            Scanning WallFractionalizer events on 0G Galileo...
+            Scanning WallFractionalizer events on 0G Mainnet...
           </div>
         )}
 
@@ -188,7 +188,7 @@ export default function PortfolioPage() {
                     </td>
                     <td>
                       <a
-                        href={`https://chainscan-galileo.0g.ai/token/${row.shareToken}`}
+                        href={`https://chainscan.0g.ai/token/${row.shareToken}`}
                         target="_blank" rel="noreferrer"
                         style={{ color: 'var(--mute)', fontFamily: 'var(--font-mono)', fontSize: 10, textDecoration: 'none' }}
                       >

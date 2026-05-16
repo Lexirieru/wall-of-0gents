@@ -216,7 +216,7 @@ const STEPS: { id: WizStep; num: string; label: string }[] = [
 
 // ─── Helper: default system prompt ─────────────────────────────────────────
 function defaultSystemPrompt(ticker: string, archetype: typeof ARCHETYPES[0]): string {
-  return `You are ${ticker || 'AGENT'}, a permissionless AI agent on Wall of 0Gents.\n\n${archetype.tagline}\n\n${archetype.desc}\n\nYou operate autonomously via x402 micropayments on 0G Galileo. Every inference call generates a verifiable on-chain receipt signed by the operator.`
+  return `You are ${ticker || 'AGENT'}, a permissionless AI agent on Wall of 0Gents.\n\n${archetype.tagline}\n\n${archetype.desc}\n\nYou operate autonomously via x402 micropayments on 0G Mainnet. Every inference call generates a verifiable on-chain receipt signed by the operator.`
 }
 
 // ─── Step indicator bar ────────────────────────────────────────────────────
@@ -497,7 +497,7 @@ function IdentityStep({
       id: '0g-ai',
       label: '0G COMPUTE',
       badge: 'TEE',
-      desc: 'Runs directly on 0G Galileo inside a secure enclave. Responses are signed on-chain so anyone can verify the agent wasn\'t tampered with.',
+      desc: 'Runs directly on 0G Mainnet inside a secure enclave. Responses are signed on-chain so anyone can verify the agent wasn\'t tampered with.',
     },
     {
       id: 'venice',
@@ -901,7 +901,7 @@ function ReviewStep({
 
     try {
       if (!onZg) {
-        log('[chain] switching to 0G Galileo...')
+        log('[chain] switching to 0G Mainnet...')
         await switchChain({ chainId: ZG_ID })
         log('[chain] switched ✓')
       }
@@ -917,7 +917,7 @@ function ReviewStep({
       })
 
       log(`[tx] submitted: ${hash.slice(0, 22)}...`)
-      log('[tx] waiting for confirmation on 0G Galileo...')
+      log('[tx] waiting for confirmation on 0G Mainnet...')
 
       let rec = null
       for (let i = 0; i < 30; i++) {
@@ -938,7 +938,7 @@ function ReviewStep({
       }
 
       log(`[mint] success ✓ — Token ID: #${tokenId}`)
-      log(`[explorer] https://chainscan-galileo.0g.ai/tx/${hash}`)
+      log(`[explorer] https://chainscan.0g.ai/tx/${hash}`)
       onMinted(tokenId, hash)
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message.slice(0, 200) : String(e))
@@ -989,7 +989,7 @@ function ReviewStep({
       ) : !onZg ? (
         <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: '#f59e0b' }}>
-            ⚠ wallet is on chain {chainId}, need 0G Galileo ({ZG_ID})
+            ⚠ wallet is on chain {chainId}, need 0G Mainnet ({ZG_ID})
           </span>
           <button className="btn" onClick={() => switchChain({ chainId: ZG_ID })} style={{ cursor: 'pointer', fontSize: 11 }}>
             Switch Chain
@@ -1175,10 +1175,10 @@ function ListStep({
           {ticker.toUpperCase()} · Token #{tokenId}
         </div>
         <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--mute)' }}>
-          NFT minted on 0G Galileo. Complete the steps below to launch on the exchange.
+          NFT minted on 0G Mainnet. Complete the steps below to launch on the exchange.
         </div>
         {txHash && (
-          <a href={`https://chainscan-galileo.0g.ai/tx/${txHash}`} target="_blank" rel="noreferrer"
+          <a href={`https://chainscan.0g.ai/tx/${txHash}`} target="_blank" rel="noreferrer"
             style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--accent)', textDecoration: 'none', display: 'block', marginTop: 8 }}>
             view mint tx on 0G explorer ↗ {txHash.slice(0, 18)}…
           </a>
@@ -1218,8 +1218,8 @@ function ListStep({
           )}
           {launchState === 'done' && shareToken && (
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <span>AgentShare: <a href={`https://chainscan-galileo.0g.ai/token/${shareToken}`} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', textDecoration: 'none' }}>{shareToken.slice(0, 18)}… ↗</a></span>
-              {ipoAddr && <span>IPO: <a href={`https://chainscan-galileo.0g.ai/address/${ipoAddr}`} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', textDecoration: 'none' }}>{ipoAddr.slice(0, 18)}… ↗</a></span>}
+              <span>AgentShare: <a href={`https://chainscan.0g.ai/token/${shareToken}`} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', textDecoration: 'none' }}>{shareToken.slice(0, 18)}… ↗</a></span>
+              {ipoAddr && <span>IPO: <a href={`https://chainscan.0g.ai/address/${ipoAddr}`} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', textDecoration: 'none' }}>{ipoAddr.slice(0, 18)}… ↗</a></span>}
             </div>
           )}
           {launchState === 'error' && (
@@ -1337,7 +1337,7 @@ export default function LaunchPage() {
           step {String(STEPS.findIndex(s => s.id === step) + 1).padStart(2, '0')} / 04
         </span>
         <span style={{ marginLeft: 'auto', float: 'right', color: 'var(--mute)', fontSize: 10 }}>
-          permissionless · 0g-galileo · agent nft {AGENT_NFT.slice(0, 10)}…{AGENT_NFT.slice(-8)}
+          permissionless · 0g-mainnet · agent nft {AGENT_NFT.slice(0, 10)}…{AGENT_NFT.slice(-8)}
         </span>
       </div>
 

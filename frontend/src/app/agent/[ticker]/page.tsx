@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { loadInferences, readVault, readNftOwner, readFactoryLaunch, getBackendAgent } from '@/lib/agents'
+import { CONTRACTS } from '@/lib/abis'
 import { shortAddr } from '@/lib/format'
 import { AgentTabs } from '@/components/market/AgentTabs'
 import { CallsToday } from '@/components/market/CallsToday'
@@ -130,10 +131,10 @@ export default async function AgentPage({ params }: { params: Promise<{ ticker: 
           <p className="section-h">Contract Info</p>
           <div className="panel" style={{ padding: 14 }}>
             <div className="kv">
-              <span className="k">Network</span><span className="v">0G Galileo</span>
+              <span className="k">Network</span><span className="v">0G Mainnet</span>
               <span className="k">NFT Contract</span>
               <span className="v" style={{ wordBreak: 'break-all', fontSize: 10 }}>
-                0x4ce1D1E0e9C769221E03e661abBf043cceD84F1f
+                {CONTRACTS.agentNft}
               </span>
               <span className="k">Token ID</span><span className="v">#{agent.tokenId}</span>
               <span className="k">Owner</span>
@@ -180,7 +181,7 @@ export default async function AgentPage({ params }: { params: Promise<{ ticker: 
           <p className="section-h" style={{ marginTop: 20 }}>Explorer</p>
           <div className="panel" style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
             <a
-              href={`https://chainscan-galileo.0g.ai/token/0x4ce1D1E0e9C769221E03e661abBf043cceD84F1f?a=${agent.tokenId}`}
+              href={`https://chainscan.0g.ai/token/${CONTRACTS.agentNft}?a=${agent.tokenId}`}
               target="_blank" rel="noreferrer"
               style={{ color: 'var(--accent)', fontFamily: 'var(--font-mono)', fontSize: 11, textDecoration: 'none' }}
             >
@@ -188,7 +189,7 @@ export default async function AgentPage({ params }: { params: Promise<{ ticker: 
             </a>
             {activeShareToken && activeShareToken !== '0x0000000000000000000000000000000000000000' && (
               <a
-                href={`https://chainscan-galileo.0g.ai/token/${activeShareToken}`}
+                href={`https://chainscan.0g.ai/token/${activeShareToken}`}
                 target="_blank" rel="noreferrer"
                 style={{ color: 'var(--accent)', fontFamily: 'var(--font-mono)', fontSize: 11, textDecoration: 'none' }}
               >
@@ -197,7 +198,7 @@ export default async function AgentPage({ params }: { params: Promise<{ ticker: 
             )}
             {hasIpo && (
               <a
-                href={`https://chainscan-galileo.0g.ai/address/${factoryLaunch!.ipo}`}
+                href={`https://chainscan.0g.ai/address/${factoryLaunch!.ipo}`}
                 target="_blank" rel="noreferrer"
                 style={{ color: 'var(--accent)', fontFamily: 'var(--font-mono)', fontSize: 11, textDecoration: 'none' }}
               >
