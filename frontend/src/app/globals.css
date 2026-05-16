@@ -144,7 +144,6 @@ body {
   padding: 0;
   margin: 0;
   box-sizing: border-box;
-  outline: none;
 }
 
 h1,
@@ -169,6 +168,11 @@ a {
   a {
     cursor: pointer;
   }
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 input:-webkit-autofill,
@@ -791,6 +795,7 @@ body {
 .btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   height: 32px;
   padding: 0 14px;
   font-size: 11px;
@@ -1126,8 +1131,8 @@ body {
     font-family: var(--font-mono);
     font-size: 20px;
     line-height: 1;
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
     cursor: pointer;
     flex-shrink: 0;
   }
@@ -1177,3 +1182,64 @@ body {
 
 /* --- TickerTape safe-area (notched phones with viewportFit:cover) --- */
 .tape-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+
+/* --- Markets: desktop table / mobile cards --- */
+.markets-cards { display: none; }
+
+@media (max-width: 768px) {
+  .markets-tbl { display: none; }
+  .markets-cards { display: block; }
+}
+
+.markets-card {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--hair-2);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.markets-card:last-child { border-bottom: none; }
+.markets-card:hover,
+.markets-card:active { background: #ffffff08; }
+
+.markets-card-top {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+.markets-card-arrow {
+  margin-left: auto;
+  color: var(--mute);
+  font-size: 10px;
+}
+.markets-card-sub {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-2);
+}
+
+/* --- Agent tabs — full width on mobile --- */
+@media (max-width: 768px) {
+  .agent-tab-bar { width: 100%; }
+  .agent-tab-btn {
+    flex: 1;
+    justify-content: center;
+  }
+}
+
+/* --- Reduced motion --- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *:before,
+  *:after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .tape-track {
+    animation: none;
+  }
+}
