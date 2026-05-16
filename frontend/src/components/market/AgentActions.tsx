@@ -158,7 +158,7 @@ function BuyPanel({ ipoAddress, ticker }: { ipoAddress: Hex; ticker: string }) {
         )}
 
         {!isConnected ? (
-          <button className="btn primary" onClick={() => connect({ connector: injected() })} style={{ width: '100%', cursor: 'pointer' }}>
+          <button className="btn primary" onClick={() => connect({ connector: injected(), chainId: ZG_ID })} style={{ width: '100%', cursor: 'pointer' }}>
             Connect Wallet
           </button>
         ) : (

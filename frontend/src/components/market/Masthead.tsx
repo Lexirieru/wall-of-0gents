@@ -1,10 +1,13 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useAccount, useConnect, useDisconnect } from 'wagmi'
+import { useAccount, useConnect, useDisconnect, useChainId, useSwitchChain } from 'wagmi'
 import { injected } from 'wagmi/connectors'
 import { useState, useEffect, useRef, useLayoutEffect } from 'react'
 import { gsap } from 'gsap'
+import { zgGalileo } from '@/components/providers/Web3Provider'
+
+const ZG_ID = zgGalileo.id
 
 const NAV = [
   { href: '/markets', label: 'markets', match: (p: string) => p === '/markets' || p.startsWith('/agent') },
@@ -31,20 +34,46 @@ function ConnectButton() {
   const { address, isConnected } = useAccount()
   const { connect } = useConnect()
   const { disconnect } = useDisconnect()
+  const chainId = useChainId()
+  const { switchChain } = useSwitchChain()
+  const onZg = chainId === ZG_ID
 
   if (isConnected && address) {
     const short = `${address.slice(0, 6)}…${address.slice(-4)}`
     return (
-      <button className="btn" onClick={() => disconnect()} title={address} style={{ cursor: 'pointer' }}>
-        {short}
-      </button>
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        {!onZg && (
+          <button
+            className="btn"
+            onClick={() => switchChain({ chainId: ZG_ID })}
+            style={{ cursor: 'pointer', color: '#f59e0b', borderColor: '#f59e0b', fontSize: 10, padding: '4px 10px' }}
+          >
+            Switch to 0G ↺
+          </button>
+        )}
+        <button className="btn" onClick={() => disconnect()} title={address} style={{ cursor: 'pointer' }}>
+          {short}
+        </button>
+      </div>
     )
   }
 
   return (
-    <button className="btn primary" onClick={() => connect({ connector: injected() })} style={{ cursor: 'pointer' }}>
+    <button className="btn primary" onClick={() => connect({ connector: injected(), chainId: ZG_ID })} style={{ cursor: 'pointer' }}>
       Connect ▸
     </button>
+  )
+}
+
+function NetworkBadge() {
+  const { isConnected } = useAccount()
+  const chainId = useChainId()
+  const onZg = chainId === ZG_ID
+  const label = !isConnected || onZg ? '0g-mainnet' : `chain-${chainId}`
+  return (
+    <span className="session-net" style={{ color: isConnected && !onZg ? '#f59e0b' : undefined }}>
+      {label}
+    </span>
   )
 }
 
@@ -157,7 +186,7 @@ export function Masthead() {
 
         <div ref={sessionRef} className="session">
           <span className="dot" />
-          <span className="session-net">0g-mainnet</span>
+          <NetworkBadge />
           <span className="session-clock"><Clock /></span>
           <ConnectButton />
         </div>

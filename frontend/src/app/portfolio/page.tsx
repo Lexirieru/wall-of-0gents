@@ -3,8 +3,9 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { useAccount } from 'wagmi'
 import { zgPublicClient } from '@/lib/chain'
-import { CONTRACTS, wallFractionalizerAbi, erc20Abi, wallAgentNftAbi } from '@/lib/abis'
+import { CONTRACTS, wallFractionalizerAbi, erc20Abi, wallAgentNftAbi, wallLaunchFactoryAbi } from '@/lib/abis'
 import { shortAddr } from '@/lib/format'
+import { RegisterToExchangePanel } from '@/components/market/RegisterToExchangePanel'
 import type { Hex } from 'viem'
 
 interface HoldingRow {
@@ -15,6 +16,7 @@ interface HoldingRow {
   totalSupply: bigint
   isNftOwner: boolean
   creator: Hex
+  isRealCreator: boolean
 }
 
 function fmtBal(n: bigint): string {
@@ -78,25 +80,36 @@ async function loadPortfolio(address: Hex): Promise<HoldingRow[]> {
     const isNftOwner = nftOwner?.toLowerCase() === address.toLowerCase()
 
     if (hasShares || isCreator) {
-      // Try to get ticker from vault data (use tokenId as fallback)
       let ticker = `#${tokenId}`
       try {
         const sym = await zgPublicClient.readContract({
-          address: shareToken,
-          abi: erc20Abi,
-          functionName: 'symbol',
+          address: shareToken, abi: erc20Abi, functionName: 'symbol',
         }) as string
         ticker = sym
       } catch {}
 
+      // Check factory launch to get real creator (factory stores original launcher)
+      let isRealCreator = isCreator
+      try {
+        const launch = await zgPublicClient.readContract({
+          address: CONTRACTS.factory,
+          abi: wallLaunchFactoryAbi,
+          functionName: 'launches',
+          args: [BigInt(tokenId)],
+        }) as [Hex, Hex, Hex, Hex]
+        const factoryCreator = launch[3]
+        if (factoryCreator && factoryCreator !== '0x0000000000000000000000000000000000000000') {
+          isRealCreator = factoryCreator.toLowerCase() === address.toLowerCase()
+        }
+      } catch {}
+
       rows.push({
-        tokenId,
-        ticker,
-        shareToken,
+        tokenId, ticker, shareToken,
         shareBalance: shareBalance as bigint,
         totalSupply: totalSupply as bigint,
-        isNftOwner: isNftOwner,
+        isNftOwner,
         creator,
+        isRealCreator,
       })
     }
   }
@@ -159,52 +172,77 @@ export default function PortfolioPage() {
         )}
 
         {holdings.length > 0 && (
-          <div className="panel" style={{ marginBottom: 48 }}>
-            <div className="panel-head">Agent Holdings</div>
-            <div className="tbl-scroll"><table className="tbl cols-6">
-              <thead>
-                <tr>
-                  <th>Agent</th>
-                  <th>Share Balance</th>
-                  <th>Ownership %</th>
-                  <th>NFT Owner</th>
-                  <th>AgentShare</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {holdings.map(row => (
-                  <tr key={row.tokenId}>
-                    <td>
-                      <span className="ticker">{row.ticker}</span>
-                      <span className="mute" style={{ marginLeft: 8, fontSize: 10 }}>#{row.tokenId}</span>
-                    </td>
-                    <td>{fmtBal(row.shareBalance)}</td>
-                    <td>{fmtPct(row.shareBalance, row.totalSupply)}</td>
-                    <td>
-                      {row.isNftOwner
-                        ? <span className="pill ok" style={{ fontSize: 9 }}>YOU</span>
-                        : <span className="mute">WallFractionalizer</span>}
-                    </td>
-                    <td>
-                      <a
-                        href={`https://chainscan.0g.ai/token/${row.shareToken}`}
-                        target="_blank" rel="noreferrer"
-                        style={{ color: 'var(--mute)', fontFamily: 'var(--font-mono)', fontSize: 10, textDecoration: 'none' }}
-                      >
-                        {shortAddr(row.shareToken)} ↗
-                      </a>
-                    </td>
-                    <td>
-                      <Link href={`/agent/${row.ticker}`}>
-                        <button className="btn" style={{ height: 24, fontSize: 10 }}>View ▸</button>
-                      </Link>
-                    </td>
+          <>
+            <div className="panel" style={{ marginBottom: 24 }}>
+              <div className="panel-head">Agent Holdings</div>
+              <div className="tbl-scroll"><table className="tbl cols-6">
+                <thead>
+                  <tr>
+                    <th>Agent</th>
+                    <th>Share Balance</th>
+                    <th>Ownership %</th>
+                    <th>NFT Owner</th>
+                    <th>AgentShare</th>
+                    <th></th>
                   </tr>
-                ))}
-              </tbody>
-            </table></div>
-          </div>
+                </thead>
+                <tbody>
+                  {holdings.map(row => (
+                    <tr key={row.tokenId}>
+                      <td>
+                        <span className="ticker">{row.ticker}</span>
+                        <span className="mute" style={{ marginLeft: 8, fontSize: 10 }}>#{row.tokenId}</span>
+                      </td>
+                      <td>{fmtBal(row.shareBalance)}</td>
+                      <td>{fmtPct(row.shareBalance, row.totalSupply)}</td>
+                      <td>
+                        {row.isNftOwner
+                          ? <span className="pill ok" style={{ fontSize: 9 }}>YOU</span>
+                          : <span className="mute">WallFractionalizer</span>}
+                      </td>
+                      <td>
+                        <a
+                          href={`https://chainscan.0g.ai/token/${row.shareToken}`}
+                          target="_blank" rel="noreferrer"
+                          style={{ color: 'var(--mute)', fontFamily: 'var(--font-mono)', fontSize: 10, textDecoration: 'none' }}
+                        >
+                          {shortAddr(row.shareToken)} ↗
+                        </a>
+                      </td>
+                      <td>
+                        <Link href={`/agent/${row.ticker}`}>
+                          <button className="btn" style={{ height: 24, fontSize: 10 }}>View ▸</button>
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table></div>
+            </div>
+
+            {/* Register to Exchange — only for real creator (factory launcher) */}
+            {holdings.some(r => r.isRealCreator) && (
+              <>
+                <p className="section-h">Missing from Exchange?</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 48 }}>
+                  {holdings.filter(r => r.isRealCreator).map(row => (
+                    <div key={row.tokenId} className="panel" style={{ padding: 16 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                        <span className="ticker" style={{ fontSize: 13 }}>{row.ticker}</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)' }}>#{row.tokenId}</span>
+                        <span className="pill ok" style={{ fontSize: 9 }}>CREATOR</span>
+                      </div>
+                      <RegisterToExchangePanel
+                        tokenId={row.tokenId}
+                        ticker={row.ticker}
+                        shareToken={row.shareToken}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </>
         )}
 
         {/* NFT Ownership note */}

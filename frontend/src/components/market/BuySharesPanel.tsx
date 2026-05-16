@@ -21,8 +21,9 @@ type Props = { ipoAddress: Hex; ticker: string }
 export function BuySharesPanel({ ipoAddress, ticker }: Props) {
   const { address, isConnected } = useAccount()
   const chainId = useChainId()
-  const { switchChainAsync } = useSwitchChain()
+  const { switchChainAsync, switchChain } = useSwitchChain()
   const { writeContractAsync } = useWriteContract()
+  const onZg = chainId === ZG_ID
 
   const [open, setOpen] = useState(false)
   const [shares, setShares] = useState('100')
@@ -30,7 +31,6 @@ export function BuySharesPanel({ ipoAddress, ticker }: Props) {
   const [log, setLog] = useState('')
   const [err, setErr] = useState('')
   const [stats, setStats] = useState<IpoStats | null>(null)
-  const onZg = chainId === ZG_ID
 
   useEffect(() => {
     async function fetchStats() {
@@ -165,11 +165,11 @@ export function BuySharesPanel({ ipoAddress, ticker }: Props) {
           <div style={{ display: 'flex', gap: 8 }}>
             <button
               className="btn primary"
-              onClick={handleBuy}
-              disabled={busy || !stats?.isOpen || sharesAmount === 0n}
-              style={{ cursor: (busy || !stats?.isOpen) ? 'wait' : 'pointer', fontSize: 11 }}
+              onClick={onZg ? handleBuy : () => switchChain({ chainId: ZG_ID })}
+              disabled={onZg ? (busy || !stats?.isOpen || sharesAmount === 0n) : false}
+              style={{ cursor: (onZg && (busy || !stats?.isOpen)) ? 'wait' : 'pointer', fontSize: 11 }}
             >
-              {busy ? '● working...' : '▸ BUY'}
+              {!onZg ? 'Switch to 0G Mainnet ↺' : busy ? '● working...' : '▸ BUY'}
             </button>
             <button className="btn" onClick={() => { setOpen(false); setLog(''); setErr('') }} style={{ cursor: 'pointer', fontSize: 11 }}>
               cancel

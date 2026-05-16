@@ -5,8 +5,10 @@ import { useQueryClient } from '@tanstack/react-query'
 import { formatUnits } from 'viem'
 import { erc20Abi } from '@/lib/abis'
 import { zgPublicClient as zgClient } from '@/lib/chain'
+import { zgGalileo } from '@/components/providers/Web3Provider'
 
 const OPERATOR_URL = process.env.NEXT_PUBLIC_OPERATOR_URL ?? 'http://127.0.0.1:8402'
+const ZG_ID = zgGalileo.id
 
 type X402Challenge = {
   asset: `0x${string}`
@@ -15,13 +17,14 @@ type X402Challenge = {
   chainId: number
 }
 
-type Props = { tokenId: number; ticker: string }
+type Props = { tokenId: number; ticker: string; priceUsdc?: string }
 
-export function InferenceBox({ tokenId, ticker }: Props) {
+export function InferenceBox({ tokenId, ticker, priceUsdc }: Props) {
   const { address } = useAccount()
   const { writeContractAsync } = useWriteContract()
   const chainId = useChainId()
-  const { switchChainAsync } = useSwitchChain()
+  const { switchChainAsync, switchChain } = useSwitchChain()
+  const onZg = chainId === ZG_ID
   const queryClient = useQueryClient()
 
   const [prompt, setPrompt] = useState('')
@@ -165,6 +168,11 @@ export function InferenceBox({ tokenId, ticker }: Props) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--mute)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
           {ticker} · Inference · Pay with USDC.e
+          {priceUsdc && (
+            <span style={{ marginLeft: 10, color: 'var(--accent)', fontWeight: 700 }}>
+              ${(Number(priceUsdc) / 1_000_000).toFixed(4)} / call
+            </span>
+          )}
         </span>
         {!address && (
           <span className="pill warn">Connect wallet to run</span>
@@ -177,8 +185,12 @@ export function InferenceBox({ tokenId, ticker }: Props) {
         onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void run() }}
       />
       <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
-        <button className="btn primary" onClick={() => void run()} disabled={loading || !address}>
-          {loading ? 'Processing…' : 'Run ▸'}
+        <button
+          className="btn primary"
+          onClick={onZg ? () => void run() : () => switchChain({ chainId: ZG_ID })}
+          disabled={onZg ? (loading || !address) : false}
+        >
+          {!onZg ? 'Switch to 0G Mainnet ↺' : loading ? 'Processing…' : 'Run ▸'}
         </button>
         <button
           className="btn"

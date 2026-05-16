@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { notFound } from 'next/navigation'
 import { loadInferences, readVault, readNftOwner, readFactoryLaunch, getBackendAgent } from '@/lib/agents'
 import { CONTRACTS } from '@/lib/abis'
 import { shortAddr } from '@/lib/format'
@@ -10,38 +11,21 @@ import type { Hex } from 'viem'
 
 export const revalidate = 30
 
-const KNOWN_AGENTS: Record<string, {
-  ticker: string; tokenId: number; ensName: string; owner: string;
-  description: string; model: string;
-}> = {
-  WAGNT: {
-    ticker: 'WAGNT', tokenId: 1, ensName: '',
-    owner: '0xFA128bBD1846c19025c7428AEE403Fc06F0A9e38',
-    description: 'The first Wall of 0gents agent. Powered by Gemini 2.0 Flash Lite via OpenRouter. Sealed weights on 0G storage.',
-    model: 'google/gemini-2.0-flash-lite-001',
-  },
-}
-
-
 export default async function AgentPage({ params }: { params: Promise<{ ticker: string }> }) {
   const { ticker } = await params
   const upper = ticker.toUpperCase()
 
-  let agent = KNOWN_AGENTS[upper]
-  if (!agent) {
-    const backendEntry = await getBackendAgent(upper).catch(() => null)
-    if (backendEntry) {
-      agent = {
-        ticker: upper,
-        tokenId: Number(backendEntry.tokenId),
-        ensName: '',
-        owner: '',
-        description: backendEntry.description ?? backendEntry.name ?? upper,
-        model: backendEntry.model ?? '—',
-      }
-    } else {
-      agent = KNOWN_AGENTS['WAGNT']
-    }
+  const backendEntry = await getBackendAgent(upper).catch(() => null)
+  if (!backendEntry) notFound()
+
+  const agent = {
+    ticker: upper,
+    tokenId: Number(backendEntry.tokenId),
+    ensName: '',
+    owner: '',
+    description: backendEntry.description ?? backendEntry.name ?? upper,
+    model: backendEntry.model ?? '—',
+    priceUsdc: backendEntry.priceUsdc,
   }
 
   const [inferences, vault, nftOwner, factoryLaunch] = await Promise.all([
@@ -77,6 +61,11 @@ export default async function AgentPage({ params }: { params: Promise<{ ticker: 
           <h1 style={{ fontFamily: 'var(--font-mono)', fontSize: 32, fontWeight: 900, color: 'var(--accent)', margin: 0 }}>{agent.ticker}</h1>
           <span className="pill ok">ERC-7857</span>
           <span className="pill">Token #{agent.tokenId}</span>
+          {agent.priceUsdc && (
+            <span className="pill" style={{ color: 'var(--accent)', borderColor: 'var(--accent)', marginLeft: 'auto' }}>
+              ${(Number(agent.priceUsdc) / 1_000_000).toFixed(4)} / call
+            </span>
+          )}
         </div>
         <p style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg-2)', maxWidth: 600, lineHeight: 1.6, margin: 0 }}>{agent.description}</p>
       </div>
@@ -123,6 +112,7 @@ export default async function AgentPage({ params }: { params: Promise<{ ticker: 
           isRegistered={isRegistered}
           ipoAddress={hasIpo ? factoryLaunch!.ipo : undefined}
           inferences={inferences}
+          priceUsdc={agent.priceUsdc}
         />
 
         {/* Sidebar */}

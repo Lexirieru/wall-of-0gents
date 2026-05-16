@@ -4,7 +4,7 @@ import { shortAddr } from '@/lib/format'
 
 export const revalidate = 30
 
-const FALLBACK = [{ ticker: 'WAGNT', tokenId: 1, ensName: '', runtime: '0g-ai', pricePerShareUsdc: '—', cumulativeRevenueUsdc: '—', vaultBalance: '—', callsToday: 0, owner: '0xFA128bBD1846c19025c7428AEE403Fc06F0A9e38' }]
+const FALLBACK: Awaited<ReturnType<typeof listAgents>> = []
 
 export default async function MarketsPage() {
   const agents = await listAgents().catch(() => FALLBACK)

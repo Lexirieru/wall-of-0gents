@@ -13,15 +13,15 @@ type Props = { tokenId: number; ticker: string }
 export function BidPanel({ tokenId, ticker }: Props) {
   const { address, isConnected } = useAccount()
   const chainId = useChainId()
-  const { switchChainAsync } = useSwitchChain()
+  const { switchChainAsync, switchChain } = useSwitchChain()
   const { writeContractAsync } = useWriteContract()
+  const onZg = chainId === ZG_ID
 
   const [open, setOpen] = useState(false)
   const [bidUsd, setBidUsd] = useState('10')
   const [busy, setBusy] = useState(false)
   const [log, setLog] = useState('')
   const [err, setErr] = useState('')
-  const onZg = chainId === ZG_ID
 
   const handleBid = async () => {
     if (!address) return
@@ -120,8 +120,13 @@ export function BidPanel({ tokenId, ticker }: Props) {
           </div>
 
           <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn primary" onClick={handleBid} disabled={busy} style={{ cursor: busy ? 'wait' : 'pointer', fontSize: 11 }}>
-              {busy ? '● working...' : '▸ PLACE BID'}
+            <button
+              className="btn primary"
+              onClick={onZg ? handleBid : () => switchChain({ chainId: ZG_ID })}
+              disabled={onZg ? busy : false}
+              style={{ cursor: (onZg && busy) ? 'wait' : 'pointer', fontSize: 11 }}
+            >
+              {!onZg ? 'Switch to 0G Mainnet ↺' : busy ? '● working...' : '▸ PLACE BID'}
             </button>
             <button className="btn" onClick={() => { setOpen(false); setLog(''); setErr('') }} style={{ cursor: 'pointer', fontSize: 11 }}>
               cancel

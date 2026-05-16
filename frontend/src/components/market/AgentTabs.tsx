@@ -25,6 +25,7 @@ interface Props {
   isRegistered: boolean
   ipoAddress?: Hex
   inferences: Inference[]
+  priceUsdc?: string
 }
 
 interface TabBtnProps {
@@ -78,7 +79,7 @@ const TabBtn = forwardRef<HTMLButtonElement, TabBtnProps>(function TabBtn(
   )
 })
 
-export function AgentTabs({ ticker, tokenId, hasIpo, isRegistered, ipoAddress, inferences }: Props) {
+export function AgentTabs({ ticker, tokenId, hasIpo, isRegistered, ipoAddress, inferences, priceUsdc }: Props) {
   const [tab, setTab] = useState<Tab>('call')
 
   const tabBarRef = useRef<HTMLDivElement>(null)
@@ -188,37 +189,30 @@ export function AgentTabs({ ticker, tokenId, hasIpo, isRegistered, ipoAddress, i
       <div ref={contentRef}>
         {tab === 'call' && (
           <>
-            <InferenceBox tokenId={tokenId} ticker={ticker} />
+            <InferenceBox tokenId={tokenId} ticker={ticker} priceUsdc={priceUsdc} />
             {inferences.length > 0 && (
               <>
-                <p className="section-h" style={{ marginTop: 32 }}>Recent Inferences</p>
-                <div className="panel">
-                  <table className="tbl">
-                    <thead>
-                      <tr>
-                        <th>Time</th>
-                        <th>Subscriber</th>
-                        <th>Prompt preview</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {inferences.slice(0, 10).map((inf, i) => (
-                        <tr key={inf.id || `${inf.subscriber}-${inf.timestamp}-${i}`}>
-                          <td className="mute">{relativeTime(inf.timestamp)}</td>
-                          <td className="mute">{shortAddr(inf.subscriber)}</td>
-                          <td style={{ maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {inf.prompt}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <p className="section-h" style={{ marginTop: 32 }}>Call History</p>
+                <div style={{ borderTop: '1px solid var(--hair)' }}>
+                  <div style={{ display: 'flex', gap: 40, padding: '6px 0', borderBottom: '1px solid var(--hair)' }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', letterSpacing: '0.08em', width: 100 }}>TIME</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', letterSpacing: '0.08em' }}>CALLER WALLET</span>
+                  </div>
+                  {inferences.slice(0, 10).map((inf, i) => (
+                    <div
+                      key={inf.id || `${inf.subscriber}-${inf.timestamp}-${i}`}
+                      style={{ display: 'flex', gap: 40, padding: '10px 0', borderBottom: '1px solid var(--hair-2)', alignItems: 'center' }}
+                    >
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--mute)', width: 100, flexShrink: 0 }}>{relativeTime(inf.timestamp)}</span>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--mute)' }}>{shortAddr(inf.subscriber)}</span>
+                    </div>
+                  ))}
                 </div>
               </>
             )}
             {inferences.length === 0 && (
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--mute)', marginTop: 20 }}>
-                no inferences yet — run the first call above
+                Belum ada yang mencoba — jadilah yang pertama pakai form di atas
               </div>
             )}
           </>
@@ -333,7 +327,7 @@ function BuyTab({ ipoAddress, ticker }: { ipoAddress: Hex; ticker: string }) {
       {!isConnected ? (
         <button
           className="btn primary"
-          onClick={() => connect({ connector: injected() })}
+          onClick={() => connect({ connector: injected(), chainId: ZG_ID })}
           style={{ width: '100%', cursor: 'pointer', padding: '12px 0', fontSize: 13 }}
         >
           Connect Wallet to Buy

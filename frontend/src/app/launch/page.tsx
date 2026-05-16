@@ -203,7 +203,7 @@ const ARCHETYPES = [
   },
 ]
 
-const PAGE_SIZE = 9
+const PAGE_SIZE = 14
 
 type WizStep = 'archetype' | 'identity' | 'review' | 'list'
 
@@ -413,6 +413,7 @@ function IdentityStep({
   runtime, setRuntime,
   systemPrompt, setSystemPrompt,
   skills, setSkills,
+  ipoPrice, setIpoPrice, ipoAllocation, setIpoAllocation, ipoDays, setIpoDays,
   onBack, onContinue,
 }: {
   archetypeId: string
@@ -423,6 +424,9 @@ function IdentityStep({
   runtime: string; setRuntime: (v: string) => void
   systemPrompt: string; setSystemPrompt: (v: string) => void
   skills: Skill[]; setSkills: (v: Skill[]) => void
+  ipoPrice: string; setIpoPrice: (v: string) => void
+  ipoAllocation: string; setIpoAllocation: (v: string) => void
+  ipoDays: string; setIpoDays: (v: string) => void
   onBack: () => void; onContinue: () => void
 }) {
   const archetype = ARCHETYPES.find(a => a.id === archetypeId)!
@@ -570,24 +574,102 @@ function IdentityStep({
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', letterSpacing: '0.08em', marginBottom: 8 }}>
               PER-CALL PRICE
             </div>
-            <div style={{ display: 'flex', border: '1px solid var(--hair)', background: '#080808', width: '100%', maxWidth: 200 }}>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: 'var(--accent)', padding: '12px 12px' }}>$</span>
+            <div style={{ display: 'flex', border: '1px solid var(--hair)', background: '#080808' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: 'var(--accent)', padding: '12px 12px', flexShrink: 0 }}>$</span>
               <input
                 value={price}
                 onChange={e => setPrice(e.target.value)}
                 placeholder="0.10"
                 style={{
                   flex: 1, background: 'transparent', border: 'none', outline: 'none',
-                  fontFamily: 'var(--font-mono)', fontSize: 14, color: 'var(--fg)', padding: '12px 0',
+                  fontFamily: 'var(--font-mono)', fontSize: 14, color: 'var(--fg)', padding: '12px 0', minWidth: 0,
                 }}
               />
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--mute)', padding: '12px 12px', borderLeft: '1px solid var(--hair)' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--mute)', padding: '12px 12px', borderLeft: '1px solid var(--hair)', flexShrink: 0, whiteSpace: 'nowrap' }}>
                 USDC
               </span>
             </div>
             {price && <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', marginTop: 4 }}>
               shareholders receive ${price} per inference call
             </div>}
+          </div>
+
+          {/* IPO Settings — 3 col grid */}
+          <div style={{ marginBottom: 24, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
+            {/* IPO Share Price */}
+            <div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', letterSpacing: '0.08em', marginBottom: 8 }}>
+                IPO SHARE PRICE
+              </div>
+              <div style={{ display: 'flex', border: '1px solid var(--hair)', background: '#080808' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: 'var(--accent)', padding: '12px 12px', flexShrink: 0 }}>$</span>
+                <input
+                  value={ipoPrice}
+                  onChange={e => setIpoPrice(e.target.value)}
+                  placeholder="0.01"
+                  style={{
+                    flex: 1, background: 'transparent', border: 'none', outline: 'none',
+                    fontFamily: 'var(--font-mono)', fontSize: 14, color: 'var(--fg)', padding: '12px 0', minWidth: 0,
+                  }}
+                />
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--mute)', padding: '12px 10px', borderLeft: '1px solid var(--hair)', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                  USDC
+                </span>
+              </div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', marginTop: 4 }}>
+                harga tiap share saat IPO
+              </div>
+            </div>
+
+            {/* IPO Allocation */}
+            <div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', letterSpacing: '0.08em', marginBottom: 8 }}>
+                IPO ALLOCATION <span style={{ color: 'var(--hair)' }}>/ 1M</span>
+              </div>
+              <div style={{ display: 'flex', border: '1px solid var(--hair)', background: '#080808' }}>
+                <input
+                  value={ipoAllocation}
+                  onChange={e => setIpoAllocation(e.target.value.replace(/[^0-9]/g, ''))}
+                  placeholder="200000"
+                  style={{
+                    flex: 1, background: 'transparent', border: 'none', outline: 'none',
+                    fontFamily: 'var(--font-mono)', fontSize: 14, color: 'var(--fg)', padding: '12px 14px', minWidth: 0,
+                  }}
+                />
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--mute)', padding: '12px 10px', borderLeft: '1px solid var(--hair)', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                  shares
+                </span>
+              </div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', marginTop: 4 }}>
+                {(1_000_000 - Number(ipoAllocation || 200_000)).toLocaleString()} wallet · {Number(ipoAllocation || 200_000).toLocaleString()} IPO
+              </div>
+            </div>
+
+            {/* IPO Duration */}
+            <div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', letterSpacing: '0.08em', marginBottom: 8 }}>
+                IPO DURATION
+              </div>
+              <select
+                value={ipoDays}
+                onChange={e => setIpoDays(e.target.value)}
+                style={{
+                  width: '100%', background: '#080808', border: '1px solid var(--hair)',
+                  outline: 'none', fontFamily: 'var(--font-mono)', fontSize: 13,
+                  color: 'var(--fg)', padding: '12px 14px', cursor: 'pointer',
+                  appearance: 'none', WebkitAppearance: 'none',
+                }}
+              >
+                <option value="7">7 days</option>
+                <option value="14">14 days</option>
+                <option value="30">30 days</option>
+                <option value="60">60 days</option>
+                <option value="90">90 days</option>
+              </select>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', marginTop: 4 }}>
+                window beli shares publik
+              </div>
+            </div>
           </div>
 
           {/* Operator URL */}
@@ -839,11 +921,6 @@ function IdentityStep({
         </div>
       </div>
 
-      {/* ── Footer ── */}
-      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--hair)', marginBottom: 8 }}>
-        everything above gets bundled and saved on-chain when you mint
-      </div>
-
       <NavButtons
         onBack={onBack}
         onContinue={canContinue ? onContinue : undefined}
@@ -975,7 +1052,7 @@ function ReviewStep({
 
       {!isConnected ? (
         <div style={{ marginBottom: 16 }}>
-          <button className="btn primary" onClick={() => connect({ connector: injected() })} style={{ cursor: 'pointer' }}>
+          <button className="btn primary" onClick={() => connect({ connector: injected(), chainId: ZG_ID })} style={{ cursor: 'pointer' }}>
             Connect Wallet to Mint
           </button>
         </div>
@@ -991,9 +1068,13 @@ function ReviewStep({
       ) : null}
 
       {isConnected && (
-        <button className="btn primary" onClick={handleMint} disabled={busy}
-          style={{ cursor: busy ? 'wait' : 'pointer', marginBottom: 12 }}>
-          {busy ? '● signing...' : `▸ MINT ${ticker.toUpperCase()} NFT ON 0G MAINNET`}
+        <button
+          className="btn primary"
+          onClick={onZg ? handleMint : () => switchChain({ chainId: ZG_ID })}
+          disabled={onZg ? busy : false}
+          style={{ cursor: (onZg && busy) ? 'wait' : 'pointer', marginBottom: 12 }}
+        >
+          {!onZg ? 'Switch to 0G Mainnet ↺' : busy ? '● signing...' : `▸ MINT ${ticker.toUpperCase()} NFT ON 0G MAINNET`}
         </button>
       )}
 
@@ -1017,11 +1098,12 @@ function ReviewStep({
 // ─── Step 04: Launch (1-tx factory) + Register ─────────────────────────────
 function ListStep({
   ticker, tokenId, txHash, description, price, archetypeId, operatorUrl,
-  systemPrompt, skills,
+  systemPrompt, skills, ipoPrice, ipoAllocation, ipoDays,
 }: {
   ticker: string; tokenId: string; txHash: string
   description: string; price: string; archetypeId: string; operatorUrl: string
   systemPrompt: string; skills: Skill[]
+  ipoPrice: string; ipoAllocation: string; ipoDays: string
 }) {
   const { address } = useAccount()
   const { writeContractAsync } = useWriteContract()
@@ -1046,10 +1128,10 @@ function ListStep({
       const shareName   = `${ticker.toUpperCase()} Agent Share`
       const shareSymbol = ticker.toUpperCase()
       const now         = BigInt(Math.floor(Date.now() / 1000))
-      const pricePerShare = 10_000n          // 0.01 USDC per share (6-decimal)
-      const ipoShares   = 200_000n * BigInt(1e18)  // 20% of 1M supply in IPO
-      const ipoStartsAt = now + 60n          // starts in 60s
-      const ipoEndsAt   = now + 30n * 86400n // 30-day window
+      const pricePerShare = BigInt(Math.round(Number(ipoPrice || '0.01') * 1_000_000))
+      const ipoShares   = BigInt(Number(ipoAllocation || '200000')) * BigInt(1e18)
+      const ipoStartsAt = now
+      const ipoEndsAt   = now + BigInt(Number(ipoDays || '30')) * 86400n
 
       llog('[1/1] encoding LaunchParams...')
       const launchData = encodeAbiParameters(
@@ -1198,7 +1280,7 @@ function ListStep({
         </div>
         <div style={{ padding: '14px 16px' }}>
           <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--mute)', margin: '0 0 8px', lineHeight: 1.6 }}>
-            One transaction does everything: fractionalize NFT → mint 1,000,000 {ticker.toUpperCase()} shares → deploy IPO contract → deploy revenue vault. 800,000 shares go to your wallet; 200,000 are loaded into the IPO at $0.01/share.
+            One transaction does everything: fractionalize NFT → mint 1,000,000 {ticker.toUpperCase()} shares → deploy IPO contract → deploy revenue vault. {(1_000_000 - Number(ipoAllocation || 200_000)).toLocaleString()} shares go to your wallet; {Number(ipoAllocation || 200_000).toLocaleString()} are loaded into the IPO at ${ipoPrice || '0.01'}/share.
           </p>
 
           {launchState === 'idle' && (
@@ -1304,6 +1386,9 @@ export default function LaunchPage() {
   const [ticker, setTicker] = useState('')
   const [description, setDescription] = useState('')
   const [price, setPrice] = useState('0.10')
+  const [ipoPrice, setIpoPrice] = useState('0.01')
+  const [ipoAllocation, setIpoAllocation] = useState('200000')
+  const [ipoDays, setIpoDays] = useState('30')
   const [operatorUrl, setOperatorUrl] = useState('')
 
   const [runtime, setRuntime] = useState('0g-ai')
@@ -1359,6 +1444,9 @@ export default function LaunchPage() {
           runtime={runtime} setRuntime={setRuntime}
           systemPrompt={systemPrompt} setSystemPrompt={setSystemPrompt}
           skills={skills} setSkills={setSkills}
+          ipoPrice={ipoPrice} setIpoPrice={setIpoPrice}
+          ipoAllocation={ipoAllocation} setIpoAllocation={setIpoAllocation}
+          ipoDays={ipoDays} setIpoDays={setIpoDays}
           onBack={() => setStep('archetype')}
           onContinue={() => advance('identity', 'review')}
         />
@@ -1381,6 +1469,7 @@ export default function LaunchPage() {
           description={description} price={price}
           archetypeId={archetypeId ?? ''} operatorUrl={operatorUrl}
           systemPrompt={systemPrompt} skills={skills}
+          ipoPrice={ipoPrice} ipoAllocation={ipoAllocation} ipoDays={ipoDays}
         />
       )}
     </>

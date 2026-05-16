@@ -25,7 +25,12 @@ export function VaultBalance({ vaultAddress }: { vaultAddress: `0x${string}` }) 
     staleTime: 8_000,
   })
 
-  const display = `$${(Number(balance) / 1e6).toFixed(2)}`
+  const usd = Number(balance) / 1e6
+  const display = usd === 0
+    ? '$0.00'
+    : usd >= 0.01
+      ? `$${usd.toFixed(2)}`
+      : `$${usd.toFixed(6).replace(/0+$/, '')}`
 
   return (
     <div className="stat">

@@ -20,20 +20,6 @@ export interface AgentSummary {
   isRegistered?: boolean
 }
 
-// Static seed agent — always shown
-const WAGNT_STATIC: AgentSummary = {
-  ticker: 'WAGNT',
-  tokenId: 1,
-  ensName: '',
-  runtime: '0g-ai',
-  description: 'The first Wall of 0gents agent. Powered by Gemini 2.0 Flash Lite. Sealed weights on 0G Storage.',
-  pricePerShareUsdc: '—',
-  cumulativeRevenueUsdc: '—',
-  vaultBalance: '—',
-  callsToday: 0,
-  owner: '0xFA128bBD1846c19025c7428AEE403Fc06F0A9e38',
-}
-
 interface BackendEntry {
   tokenId: string
   ticker: string
@@ -102,21 +88,16 @@ export async function listAgents(): Promise<AgentSummary[]> {
     isRegistered: !!e.shareToken,
   }))
 
-  // Merge: WAGNT_STATIC unless backend already has it
-  const dynamicTickers = new Set(dynamicAgents.map(a => a.ticker))
-  const wagntCalls = callsMap['1'] ?? 0
-  const base = dynamicTickers.has('WAGNT')
-    ? []
-    : [{ ...WAGNT_STATIC, callsToday: wagntCalls }]
-
-  return [...base, ...dynamicAgents]
+  return dynamicAgents
 }
 
 function formatUsdc(raw: string): string {
   const n = Number(raw)
   if (isNaN(n)) return '—'
-  // priceUsdc stored as smallest unit (6 decimals for USDC)
-  return (n / 1_000_000).toFixed(2)
+  const usd = n / 1_000_000
+  if (usd === 0) return '0.00'
+  if (usd >= 0.01) return usd.toFixed(2)
+  return usd.toFixed(6).replace(/0+$/, '')
 }
 
 async function loadAllReceipts(): Promise<Array<{ tokenId: number; timestamp: number }>> {
@@ -394,7 +375,8 @@ export async function registerAgentInBackend(
   auth: { owner: string; ts: number; signature: string },
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    const res = await fetch(`${OPERATOR_URL}/agents/register`, {
+    // Use Next.js API route proxy to avoid CORS — browser → /api/agents/register → backend
+    const res = await fetch('/api/agents/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...entry, owner: auth.owner, ts: auth.ts, signature: auth.signature }),
