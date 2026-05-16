@@ -24,7 +24,7 @@ export interface AgentSummary {
 const WAGNT_STATIC: AgentSummary = {
   ticker: 'WAGNT',
   tokenId: 1,
-  ensName: 'wagnt.wall.eth',
+  ensName: '',
   runtime: '0g-ai',
   description: 'The first Wall of 0gents agent. Powered by Gemini 2.0 Flash Lite. Sealed weights on 0G Storage.',
   pricePerShareUsdc: '—',
@@ -90,7 +90,7 @@ export async function listAgents(): Promise<AgentSummary[]> {
   const dynamicAgents: AgentSummary[] = backendEntries.map(e => ({
     ticker: e.ticker.toUpperCase(),
     tokenId: Number(e.tokenId),
-    ensName: `${e.ticker.toLowerCase()}.wall.eth`,
+    ensName: '',
     runtime: e.runtime ?? '0g-ai',
     description: e.description ?? e.name ?? e.ticker,
     pricePerShareUsdc: e.priceUsdc ? formatUsdc(e.priceUsdc) : '—',

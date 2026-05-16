@@ -467,7 +467,7 @@ function IdentityStep({
   }, [])
 
   const manifestPreview = useMemo(() => [
-    ['ticker', ticker ? `${ticker.toUpperCase()}.wall.eth` : '—'],
+    ['ticker', ticker ? ticker.toUpperCase() : '—'],
     ['archetype', archetypeId],
     ['price', price ? `$${price} USDC / call` : '—'],
     ['runtime', runtime],
@@ -477,7 +477,6 @@ function IdentityStep({
     ['─ artifacts', ''],
     ['  manifest hash', '(computed at mint)'],
     ['  token id', '(at mint time)'],
-    ['  ens record', 'pending registration'],
   ], [ticker, archetypeId, price, runtime, archetype])
 
   const addSkill = () => {
@@ -533,16 +532,10 @@ function IdentityStep({
                   color: 'var(--fg)', padding: '12px 14px',
                 }}
               />
-              <span style={{
-                fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--mute)',
-                padding: '12px 14px', borderLeft: '1px solid var(--hair)',
-              }}>
-                .wall.eth
-              </span>
             </div>
             {ticker.length >= 2 ? (
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#22c55e', marginTop: 4 }}>
-                ✓ available · resolves to 0G chain id {ZG_ID}
+                ✓ valid ticker
               </div>
             ) : ticker.length > 0 ? (
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#ef4444', marginTop: 4 }}>
@@ -948,7 +941,7 @@ function ReviewStep({
   }
 
   const summaryRows = [
-    ['TICKER', `${ticker.toUpperCase()}.wall.eth`],
+    ['TICKER', ticker.toUpperCase()],
     ['ARCHETYPE', archetypeId],
     ['TOOLS', archetype.tools.join(', ')],
     ['PRICE', price ? `$${price} USDC / call` : '—'],

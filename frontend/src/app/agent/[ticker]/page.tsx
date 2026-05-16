@@ -15,7 +15,7 @@ const KNOWN_AGENTS: Record<string, {
   description: string; model: string;
 }> = {
   WAGNT: {
-    ticker: 'WAGNT', tokenId: 1, ensName: 'wagnt.wall.eth',
+    ticker: 'WAGNT', tokenId: 1, ensName: '',
     owner: '0xFA128bBD1846c19025c7428AEE403Fc06F0A9e38',
     description: 'The first Wall of 0gents agent. Powered by Gemini 2.0 Flash Lite via OpenRouter. Sealed weights on 0G storage.',
     model: 'google/gemini-2.0-flash-lite-001',
@@ -34,7 +34,7 @@ export default async function AgentPage({ params }: { params: Promise<{ ticker: 
       agent = {
         ticker: upper,
         tokenId: Number(backendEntry.tokenId),
-        ensName: `${upper.toLowerCase()}.wall.eth`,
+        ensName: '',
         owner: '',
         description: backendEntry.description ?? backendEntry.name ?? upper,
         model: backendEntry.model ?? '—',
@@ -78,7 +78,6 @@ export default async function AgentPage({ params }: { params: Promise<{ ticker: 
           <span className="pill ok">ERC-7857</span>
           <span className="pill">Token #{agent.tokenId}</span>
         </div>
-        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--mute)', marginBottom: 8 }}>{agent.ensName}</div>
         <p style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg-2)', maxWidth: 600, lineHeight: 1.6, margin: 0 }}>{agent.description}</p>
       </div>
 
