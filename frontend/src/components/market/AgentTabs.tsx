@@ -275,7 +275,7 @@ function BuyTab({ ipoAddress, ticker }: { ipoAddress: Hex; ticker: string }) {
     if (!address || sharesAmount === 0n) return
     setBusy(true); setLog(''); setErr('')
     try {
-      if (!onZg) { setLog('switching to 0G Galileo...'); await switchChainAsync({ chainId: ZG_ID }) }
+      if (!onZg) { setLog('switching to 0G Mainnet...'); await switchChainAsync({ chainId: ZG_ID }) }
       setLog('1/2 approving USDC...')
       const approveTx = await writeContractAsync({
         address: CONTRACTS.mockUsdc, abi: erc20Abi, functionName: 'approve',
@@ -312,7 +312,7 @@ function BuyTab({ ipoAddress, ticker }: { ipoAddress: Hex; ticker: string }) {
         <div className="stat">
           <div className="label">PRICE / SHARE</div>
           <div className="value">{stats ? `$${priceUsd}` : '...'}</div>
-          <div className="delta">mockUSDC on 0G</div>
+          <div className="delta">USDC.e on 0G Mainnet</div>
         </div>
         <div className="stat">
           <div className="label">AVAILABLE</div>

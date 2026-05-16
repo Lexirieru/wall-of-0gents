@@ -157,7 +157,7 @@ export function Masthead() {
 
         <div ref={sessionRef} className="session">
           <span className="dot" />
-          <span className="session-net">0g-galileo</span>
+          <span className="session-net">0g-mainnet</span>
           <span className="session-clock"><Clock /></span>
           <ConnectButton />
         </div>

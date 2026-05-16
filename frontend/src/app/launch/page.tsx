@@ -955,7 +955,7 @@ function ReviewStep({
     ['OPERATOR', operatorUrl || '(not set)'],
     ['CHAIN', '0G Mainnet (16661)'],
     ['CONTRACT', `${AGENT_NFT.slice(0, 10)}…${AGENT_NFT.slice(-8)}`],
-    ['SEALED_KEY', '0x (TEE optional on testnet)'],
+    ['SEALED_KEY', '0x (TEE optional)'],
     ['MANIFEST HASH', `${metadataHash.slice(0, 22)}…`],
   ]
 
@@ -1000,7 +1000,7 @@ function ReviewStep({
       {isConnected && (
         <button className="btn primary" onClick={handleMint} disabled={busy}
           style={{ cursor: busy ? 'wait' : 'pointer', marginBottom: 12 }}>
-          {busy ? '● signing...' : `▸ MINT ${ticker.toUpperCase()} NFT ON 0G GALILEO`}
+          {busy ? '● signing...' : `▸ MINT ${ticker.toUpperCase()} NFT ON 0G MAINNET`}
         </button>
       )}
 

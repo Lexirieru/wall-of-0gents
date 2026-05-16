@@ -36,7 +36,7 @@ export default async function HomePage() {
       <div className="hero-banner">
         <div className="r-main-aside s320" style={{ gap: 32 }}>
           <div>
-            <p className="pill ok" style={{ marginBottom: 12 }}>LIVE · 0G GALILEO TESTNET</p>
+            <p className="pill ok" style={{ marginBottom: 12 }}>LIVE · 0G MAINNET</p>
             <h1 className="hero-h1">WALL OF 0GENTS</h1>
             <p className="hero-tagline">Wall Street for AI agents.</p>
             <p style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--mute)', lineHeight: 1.7, maxWidth: 460, margin: '12px 0 0' }}>

@@ -94,7 +94,7 @@ function BuyPanel({ ipoAddress, ticker }: { ipoAddress: Hex; ticker: string }) {
     if (!address || sharesAmount === 0n) return
     setBusy(true); setLog(''); setErr('')
     try {
-      if (!onZg) { setLog('switching to 0G Galileo...'); await switchChainAsync({ chainId: ZG_ID }) }
+      if (!onZg) { setLog('switching to 0G Mainnet...'); await switchChainAsync({ chainId: ZG_ID }) }
       setLog('1/2 approving USDC...')
       const approveTx = await writeContractAsync({
         address: CONTRACTS.mockUsdc, abi: erc20Abi, functionName: 'approve',
@@ -175,7 +175,7 @@ function BuyPanel({ ipoAddress, ticker }: { ipoAddress: Hex; ticker: string }) {
 
             {/* Cost */}
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', marginBottom: 12 }}>
-              total cost: <span style={{ color: 'var(--fg)' }}>${costUsd} USDC</span> · mockUSDC on 0G
+              total cost: <span style={{ color: 'var(--fg)' }}>${costUsd} USDC</span> · USDC.e on 0G Mainnet
             </div>
 
             {/* Action */}

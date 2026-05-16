@@ -56,12 +56,12 @@ export function BuySharesPanel({ ipoAddress, ticker }: Props) {
 
     try {
       if (!onZg) {
-        setLog('switching to 0G Galileo...')
+        setLog('switching to 0G Mainnet...')
         await switchChainAsync({ chainId: ZG_ID })
       }
 
       // Step 1: approve mockUsdc to IPO contract
-      setLog('step 1/2: approving mockUsdc...')
+      setLog('step 1/2: approving USDC.e...')
       const approveTx = await writeContractAsync({
         address: CONTRACTS.mockUsdc,
         abi: erc20Abi,
@@ -159,7 +159,7 @@ export function BuySharesPanel({ ipoAddress, ticker }: Props) {
           </div>
 
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', marginBottom: 10 }}>
-            cost: ${costUsd} USDC · mockUSDC on 0G Galileo
+            cost: ${costUsd} USDC · USDC.e on 0G Mainnet
           </div>
 
           <div style={{ display: 'flex', gap: 8 }}>
