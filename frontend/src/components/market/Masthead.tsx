@@ -50,12 +50,34 @@ function ConnectButton() {
 
 export function Masthead() {
   const path = usePathname()
+  const [menuOpen, setMenuOpen] = useState(false)
   const headerRef = useRef<HTMLElement>(null)
   const brandRef = useRef<HTMLAnchorElement>(null)
   const navLinkRefs = useRef<(HTMLAnchorElement | null)[]>([])
   const sessionRef = useRef<HTMLDivElement>(null)
   const indicatorRef = useRef<HTMLSpanElement>(null)
   const cursorRef = useRef<HTMLSpanElement>(null)
+  const mobMenuRef = useRef<HTMLElement>(null)
+
+  useEffect(() => { setMenuOpen(false) }, [path])
+
+  useEffect(() => {
+    const el = mobMenuRef.current
+    if (!el) return
+    if (menuOpen) {
+      el.style.overflow = 'hidden'
+      el.style.height = 'auto'
+      const h = el.scrollHeight
+      el.style.height = '0px'
+      gsap.to(el, {
+        height: h, duration: 0.35, ease: 'power3.out',
+        onComplete: () => { el.style.height = 'auto'; el.style.overflow = '' },
+      })
+    } else {
+      el.style.overflow = 'hidden'
+      gsap.to(el, { height: 0, duration: 0.25, ease: 'power3.in' })
+    }
+  }, [menuOpen])
 
   useLayoutEffect(() => {
     const ctx = gsap.context(() => {
@@ -94,6 +116,22 @@ export function Masthead() {
     gsap.to(indicator, { x: activeEl.offsetLeft, width: activeEl.offsetWidth, duration: 0.35, ease: 'power3.out' })
   }, [path])
 
+  useEffect(() => {
+    const positionIndicator = () => {
+      const indicator = indicatorRef.current
+      if (!indicator) return
+      const activeIndex = NAV.findIndex(n => n.match(path || '/'))
+      if (activeIndex === -1) { gsap.set(indicator, { width: 0 }); return }
+      const activeEl = navLinkRefs.current[activeIndex]
+      if (!activeEl) return
+      gsap.set(indicator, { x: activeEl.offsetLeft, width: activeEl.offsetWidth })
+    }
+    let raf = 0
+    const onResize = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(positionIndicator) }
+    window.addEventListener('resize', onResize)
+    return () => { window.removeEventListener('resize', onResize); cancelAnimationFrame(raf) }
+  }, [path])
+
   return (
     <header ref={headerRef} className="masthead" style={{ position: 'sticky', top: 0, zIndex: 200 }}>
       <div className="masthead-inner">
@@ -119,11 +157,38 @@ export function Masthead() {
 
         <div ref={sessionRef} className="session">
           <span className="dot" />
-          <span>0g-galileo</span>
-          <Clock />
+          <span className="session-net">0g-galileo</span>
+          <span className="session-clock"><Clock /></span>
           <ConnectButton />
         </div>
+
+        {/* Mobile hamburger — hidden on desktop via CSS */}
+        <button
+          className="mob-menu-btn"
+          onClick={() => setMenuOpen(o => !o)}
+          aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+          aria-expanded={menuOpen}
+        >
+          {menuOpen ? '✕' : '≡'}
+        </button>
       </div>
+
+      {/* Mobile nav dropdown — always in DOM, height animated by GSAP */}
+      <nav ref={mobMenuRef} className="mob-menu" style={{ height: 0, overflow: 'hidden' }}>
+        {NAV.map(n => (
+          <Link
+            key={n.href}
+            href={n.href}
+            className={n.match(path || '/') ? 'active' : ''}
+            onClick={() => setMenuOpen(false)}
+          >
+            <span className="nav-slash">/</span>{n.label}
+          </Link>
+        ))}
+        <div className="mob-menu-connect">
+          <ConnectButton />
+        </div>
+      </nav>
     </header>
   )
 }
