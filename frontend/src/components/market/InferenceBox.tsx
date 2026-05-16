@@ -115,13 +115,14 @@ export function InferenceBox({ tokenId, ticker }: Props) {
         return
       }
 
-      const { callId } = await r2.json() as { callId: string }
+      const { callId, pollToken } = await r2.json() as { callId: string; pollToken: string }
 
-      // 6. Poll for result (max 2 minutes)
+      // 6. Poll for result (max 2 minutes). pollToken is a bearer secret
+      //    returned only to us — required so a known callId can't leak our output.
       setStatus('Running inference…')
       for (let i = 0; i < 60; i++) {
         await new Promise(r => setTimeout(r, 2000))
-        const pr = await fetch(`${OPERATOR_URL}/x402/calls/${callId}`)
+        const pr = await fetch(`${OPERATOR_URL}/x402/calls/${callId}?t=${encodeURIComponent(pollToken)}`)
         const pd = await pr.json() as {
           status: 'pending' | 'done' | 'error'
           result?: { response: string }
