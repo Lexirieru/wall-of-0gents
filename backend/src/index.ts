@@ -37,6 +37,19 @@ function productionGuards() {
     log.warn("PROD-GUARD: mainnet chain but ZG_COMPUTE_RPC_URL is a testnet endpoint — set https://evmrpc.0g.ai.");
   if (!onMainnet && !cfg.ZG_COMPUTE_RPC_URL.includes("testnet"))
     log.warn("PROD-GUARD: testnet chain but ZG_COMPUTE_RPC_URL points at mainnet — broker settlement will use mainnet 0G.");
+  // Durability: the dynamic agent registry AND the receipts DB (revenue
+  // history) live under these paths. On a container host (Railway/Fly) a
+  // relative/non-absolute path is the ephemeral image FS — every restart or
+  // redeploy silently wipes all registered agents and every receipt. They
+  // MUST point at a mounted persistent volume (e.g. /data).
+  const ephemeral = (p: string) => !p.startsWith("/") || p.startsWith("./");
+  if (ephemeral(cfg.AGENTS_DATA_DIR) || ephemeral(cfg.RECEIPTS_DB_PATH))
+    log.warn(
+      `PROD-GUARD: data paths look ephemeral (AGENTS_DATA_DIR=${cfg.AGENTS_DATA_DIR}, ` +
+      `RECEIPTS_DB_PATH=${cfg.RECEIPTS_DB_PATH}). On a container host these are wiped on ` +
+      `every restart/redeploy — registered agents AND receipt/revenue history are lost. ` +
+      `Mount a persistent volume and point both at it (e.g. /data).`,
+    );
 }
 
 async function main() {
