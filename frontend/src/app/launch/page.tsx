@@ -227,7 +227,7 @@ function defaultSystemPrompt(ticker: string, archetype: typeof ARCHETYPES[0]): s
 function StepBar({ current, completed }: { current: WizStep; completed: Set<WizStep> }) {
   const idx = STEPS.findIndex(s => s.id === current)
   return (
-    <div style={{ display: 'flex', borderBottom: '1px solid var(--hair)', marginBottom: 40 }}>
+    <div style={{ display: 'flex', overflowX: 'auto', borderBottom: '1px solid var(--hair)', marginBottom: 40 }} className="step-bar">
       {STEPS.map((s, i) => {
         const isCurrent = s.id === current
         const isDone = completed.has(s.id)
@@ -235,24 +235,25 @@ function StepBar({ current, completed }: { current: WizStep; completed: Set<WizS
           <div
             key={s.id}
             style={{
-              flex: 1,
+              flex: '0 0 auto',
               padding: '10px 16px',
               borderBottom: isCurrent ? '2px solid var(--accent)' : '2px solid transparent',
               fontFamily: 'var(--font-mono)',
               fontSize: 10,
               letterSpacing: '0.08em',
-              color: isCurrent ? 'var(--fg)' : isDone ? 'var(--mute)' : 'var(--hair)',
+              color: isCurrent ? 'var(--fg)' : isDone ? 'var(--fg-2)' : 'var(--mute)',
               display: 'flex',
               alignItems: 'center',
               gap: 6,
+              whiteSpace: 'nowrap',
             }}
           >
-            <span style={{ color: isCurrent ? 'var(--accent)' : isDone ? 'var(--mute)' : 'var(--hair)' }}>
+            <span style={{ color: isCurrent ? 'var(--accent)' : isDone ? '#22c55e' : 'var(--mute)' }}>
               {isDone ? '✓' : s.num}
             </span>
             {s.label}
             {i < STEPS.length - 1 && (
-              <span style={{ marginLeft: 'auto', color: i < idx ? 'var(--hair)' : 'var(--hair)' }}>─</span>
+              <span style={{ marginLeft: 8, color: 'var(--hair)' }}>·</span>
             )}
           </div>
         )
@@ -318,11 +319,11 @@ function ArchetypeStep({
         <h1 style={{ fontFamily: 'var(--font-mono)', fontSize: 26, fontWeight: 700, color: 'var(--fg)', margin: '0 0 8px' }}>
           pick a strategy archetype<span style={{ color: 'var(--accent)', animation: 'blink 1s step-end infinite' }}>█</span>
         </h1>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <p style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--mute)', margin: 0 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+          <p style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--mute)', margin: 0, flex: 1 }}>
             each archetype ships with pre-wired tools. you'll customize the prompt and pricing in step 02.
           </p>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', whiteSpace: 'nowrap', marginLeft: 16 }}>
+          <span className="arch-badge" style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', whiteSpace: 'nowrap', flexShrink: 0 }}>
             {ARCHETYPES.length} ARCHETYPES · CLONE &amp; CUSTOMIZE AFTER MINT
           </span>
         </div>
@@ -354,7 +355,7 @@ function ArchetypeStep({
         )}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, background: 'var(--hair)' }}>
+      <div className="r-grid-auto" style={{ gap: 1, background: 'var(--hair)' }}>
         {visible.map(a => {
           const isSelected = selected === a.id
           return (
@@ -513,7 +514,7 @@ function IdentityStep({
   return (
     <div style={{ paddingBottom: 100 }}>
       {/* Top two-column area */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 32, marginBottom: 28 }}>
+      <div className="r-main-aside s340" style={{ gap: 32, marginBottom: 28 }}>
         {/* Left: form */}
         <div>
           <h1 style={{ fontFamily: 'var(--font-mono)', fontSize: 26, fontWeight: 700, color: 'var(--fg)', margin: '0 0 28px' }}>
@@ -580,7 +581,7 @@ function IdentityStep({
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', letterSpacing: '0.08em', marginBottom: 8 }}>
               PER-CALL PRICE
             </div>
-            <div style={{ display: 'flex', border: '1px solid var(--hair)', background: '#080808', width: 200 }}>
+            <div style={{ display: 'flex', border: '1px solid var(--hair)', background: '#080808', width: '100%', maxWidth: 200 }}>
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: 'var(--accent)', padding: '12px 12px' }}>$</span>
               <input
                 value={price}
@@ -650,7 +651,7 @@ function IdentityStep({
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 14 }}>
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', letterSpacing: '0.08em' }}>WHERE DOES IT RUN?</span>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div className="r-grid-2" style={{ gap: 10 }}>
           {COMPUTE_OPTIONS.map(opt => {
             const isSelected = runtime === opt.id
             return (
@@ -976,7 +977,7 @@ function ReviewStep({
           AGENT MANIFEST
         </div>
         {summaryRows.map(([k, v]) => (
-          <div key={k} style={{ display: 'grid', gridTemplateColumns: '140px 1fr', borderBottom: '1px solid var(--hair)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+          <div key={k} className="r-kv" style={{ borderBottom: '1px solid var(--hair)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
             <div style={{ padding: '10px 16px', color: 'var(--mute)', borderRight: '1px solid var(--hair)', fontSize: 10, letterSpacing: '0.06em' }}>{k}</div>
             <div style={{ padding: '10px 16px', color: 'var(--fg)' }}>{v}</div>
           </div>
