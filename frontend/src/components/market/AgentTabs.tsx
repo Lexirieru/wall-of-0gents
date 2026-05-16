@@ -13,7 +13,7 @@ import type { Hex } from 'viem'
 const ZG_ID = zgGalileo.id
 const zgClient = createPublicClient({
   chain: { ...zgGalileo, id: ZG_ID } as never,
-  transport: http('https://evmrpc-testnet.0g.ai'),
+  transport: http('https://evmrpc.0g.ai'),
 })
 
 interface IpoStats { available: bigint; pricePerShare: bigint; maxShares: bigint; isOpen: boolean }

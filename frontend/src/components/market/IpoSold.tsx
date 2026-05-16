@@ -6,7 +6,7 @@ import { wallIPOPushAbi } from '@/lib/abis'
 
 const zgClient = createPublicClient({
   chain: { ...zgGalileo, id: zgGalileo.id } as never,
-  transport: http('https://evmrpc-testnet.0g.ai'),
+  transport: http('https://evmrpc.0g.ai'),
 })
 
 async function fetchIpoSold(ipoAddress: `0x${string}`): Promise<{ sold: bigint; maxShares: bigint }> {

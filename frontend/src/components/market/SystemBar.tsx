@@ -3,10 +3,10 @@ import { useEffect, useState } from 'react'
 import { createPublicClient, http, formatGwei } from 'viem'
 
 const zgChain = {
-  id: 16602,
+  id: 16661,
   name: '0G Galileo',
   nativeCurrency: { decimals: 18, name: '0G', symbol: '0G' },
-  rpcUrls: { default: { http: ['https://evmrpc-testnet.0g.ai'] } },
+  rpcUrls: { default: { http: ['https://evmrpc.0g.ai'] } },
 } as const
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

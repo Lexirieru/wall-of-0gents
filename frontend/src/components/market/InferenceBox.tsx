@@ -8,7 +8,7 @@ import { zgGalileo } from '@/components/providers/Web3Provider'
 
 const zgClient = createPublicClient({
   chain: { ...zgGalileo, id: zgGalileo.id } as never,
-  transport: http('https://evmrpc-testnet.0g.ai'),
+  transport: http('https://evmrpc.0g.ai'),
 })
 
 const OPERATOR_URL = process.env.NEXT_PUBLIC_OPERATOR_URL ?? 'http://127.0.0.1:8402'

@@ -15,7 +15,7 @@ const ZG_ID = zgGalileo.id
 
 const zgClient = createPublicClient({
   chain: { ...zgGalileo, id: ZG_ID } as never,
-  transport: http('https://evmrpc-testnet.0g.ai'),
+  transport: http('https://evmrpc.0g.ai'),
 })
 
 // ─── Skill interface ────────────────────────────────────────────────────────
@@ -475,7 +475,7 @@ function IdentityStep({
     ['archetype', archetypeId],
     ['price', price ? `$${price} USDC / call` : '—'],
     ['runtime', runtime],
-    ['chain', '0G Galileo (16602)'],
+    ['chain', '0G Mainnet (16661)'],
     ['─ tools', `(${archetype.toolCount})`],
     ...archetype.tools.map(t => [`  › ${t.toLowerCase()}`, '']),
     ['─ artifacts', ''],
@@ -957,7 +957,7 @@ function ReviewStep({
     ['TOOLS', archetype.tools.join(', ')],
     ['PRICE', price ? `$${price} USDC / call` : '—'],
     ['OPERATOR', operatorUrl || '(not set)'],
-    ['CHAIN', '0G Galileo Testnet (16602)'],
+    ['CHAIN', '0G Mainnet (16661)'],
     ['CONTRACT', `${AGENT_NFT.slice(0, 10)}…${AGENT_NFT.slice(-8)}`],
     ['SEALED_KEY', '0x (TEE optional on testnet)'],
     ['MANIFEST HASH', `${metadataHash.slice(0, 22)}…`],
