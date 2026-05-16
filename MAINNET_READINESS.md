@@ -81,3 +81,102 @@ These are enforced as **loud `PROD-GUARD` warnings at backend boot**:
 - [ ] openMinting/TEE decision recorded
 - [ ] Full e2e on mainnet fork/staging green
 - [ ] Disk/secret monitoring + key custody runbook in place
+
+## 6. Railway (backend hosting) — deploy gates
+
+The operator node is **stateful** (SQLite + flat files). On Railway's
+default ephemeral filesystem this is unsafe.
+
+1. 🚨 **Persistent volume (CRITICAL).** Attach a Railway Volume and point
+   `RECEIPTS_DB_PATH` + `AGENTS_DATA_DIR` at its mount path. Without it, every
+   redeploy/restart wipes: the `consumed_payments` anti-replay ledger (→ a
+   already-used payment can be replayed for free inference), the dynamic agent
+   registry, and all receipts/pending-call recovery state. **Hard blocker.**
+2. 🚨 **Single replica.** SQLite is file-local — multiple Railway replicas each
+   get a divergent DB (split anti-replay/registry). Pin replicas = 1, or
+   migrate persistence to managed Postgres before scaling.
+3. ⚠️ **`TRUST_PROXY=true`.** Behind Railway's edge the real client IP arrives
+   via `X-Forwarded-For`; without this, per-IP rate limits collapse to the
+   shared proxy IP. Set it (and keep the IP-independent global ceilings).
+4. ✅ **$PORT handled** — `HTTP_PORT` now falls back to the platform `$PORT`.
+5. ⚠️ Set `CORS_ORIGINS` to the deployed frontend origin; set all `WALL_*`,
+   `PAYMENT_ASSET`, `OPERATOR_PRIVATE_KEY` (+ `RECEIPT_SIGNER_PRIVATE_KEY`),
+   `COMPUTE_*` as Railway env vars.
+6. ✅ Start cmd `bun run start`; SIGTERM graceful shutdown already implemented
+   (Railway sends SIGTERM on redeploy).
+
+### Railway checklist
+- [ ] Volume attached; `RECEIPTS_DB_PATH`/`AGENTS_DATA_DIR` on the volume
+- [ ] Replicas = 1 (or Postgres migration done)
+- [ ] `TRUST_PROXY=true`, `CORS_ORIGINS` set, all secrets/env set
+- [ ] Boot log shows no `PROD-GUARD`; `/readyz` green from Railway
+
+## 7. 0G Mainnet migration runbook (real market)
+
+Everything is on **0G Galileo testnet (16602) + MockUSDC**. Real market =
+redeploy to **0G mainnet** with real USDC. Verified mainnet params:
+
+| Param | Value |
+|---|---|
+| 0G mainnet chainId | **16661** |
+| 0G mainnet RPC | `https://evmrpc.0g.ai` |
+| USDC (real) | `0x1f3aa82227281ca364bfb3d253b0f1af1da6473e` — symbol `USDC.e`, **6 decimals** (matches pricing; no math change) |
+
+The backend is now **chain-config-driven** (`ZG_CHAIN_ID` env drives
+`makeChallenge.chainId`, receipt `chainId`, viem chain). Same build → mainnet
+by env only. Steps:
+
+1. **SC:** deploy the full stack to 16661 with `forge script ... --rpc-url
+   https://evmrpc.0g.ai`. **Do NOT deploy `MockUSDC`** — pass the real USDC
+   `0x1f3aa8…6473e` as `paymentAsset` to WallMarket/WallVault/factory/IPO.
+   Owner of every proxy = **multisig + timelock** (not the deployer EOA).
+2. **SC:** record new mainnet proxy addresses; verify on chainscan.
+3. **Backend env (Railway):** `ZG_CHAIN_ID=16661`,
+   `ZG_RPC_URL=https://evmrpc.0g.ai`,
+   `PAYMENT_ASSET=0x1f3aa82227281ca364bfb3d253b0f1af1da6473e`,
+   `WALL_AGENT_NFT/WALL_REGISTRY/WALL_MARKET/WALL_FRACTIONALIZER` = mainnet,
+   separate `OPERATOR_PRIVATE_KEY` + `RECEIPT_SIGNER_PRIVATE_KEY`,
+   `X402_MIN_CONFIRMATIONS>=3`, `CORS_ORIGINS`, `TRUST_PROXY=true`,
+   volume-backed data paths. Confirm **zero `PROD-GUARD`** lines at boot.
+4. **Frontend:** point chain config (`Web3Provider`/`lib/chain.ts`/`wagmi.ts`)
+   at 16661 + `https://evmrpc.0g.ai`; `CONTRACTS` → mainnet addresses;
+   `mockUsdc` → real USDC. (FE is still hardcoded to 16602 — must be updated
+   for the FE half of the cutover; backend is already env-driven.)
+5. **openMinting / TEE go-no-go decision recorded** (see §3).
+6. e2e on mainnet with a small real-USDC payment before public launch.
+
+### Mainnet cutover checklist
+- [ ] Contracts on 16661, real USDC wired, owners = multisig/timelock
+- [ ] Backend env set, no `PROD-GUARD`, `/readyz` green
+- [ ] Frontend chain/contracts/USDC switched to mainnet
+- [ ] openMinting/TEE decision recorded
+- [ ] Real-USDC e2e pass + incident runbook + key custody ready
+
+## 8. ✅ DEPLOYED — 0G Mainnet (chainId 16661)
+
+`DeployMainnet.s.sol` broadcast to `https://evmrpc.0g.ai`. Real-money safe:
+
+| Contract | Address |
+|---|---|
+| WallAgentNFT | `0x19f1021fF79B7428D4b5618338B02A20aCaD00b9` |
+| WallMarket | `0x9B9D66405CDcAdbe5d1F300f67A1F89460e4C364` |
+| WallFractionalizer | `0xe5959e5C96348a2275A93630b34cB37571d6C2E7` |
+| WallRegistry | `0xd1Ac9b80A872E8891318A3F6d551055EED399E03` |
+| WallLaunchFactory | `0x61638a3bb5449F6dB92EB9B81d858c96cb09Bf21` |
+| USDC.e (real, 6dp) | `0x1f3AA82227281cA364bFb3d253B0f1af1Da6473E` |
+
+Gaps fixed & verified on-chain:
+- **#1** `market.paymentAsset` = real USDC.e (NO MockUSDC deployed).
+- **#2** `agentNft.openMinting() == false` + `isMinter(deployer)=true` →
+  permissionless fake-agent rug vector CLOSED; agent onboarding is
+  operator-curated until real TEE attestation lands.
+- Wiring live: `registry.factory`, `fractionalizer.usageOperator`,
+  `factory.registry` all set & verified.
+
+Accepted residual risks (operator decision, on record):
+- **#3** owner = single EOA `0xFA128…9e38` (the dev/.env key). Total
+  upgrade authority over a real-money protocol on one hot key. MUST be
+  migrated to a multisig+timelock; until then this is the dominant risk.
+- **#4** no external audit (internal multi-round council + live e2e only).
+- Permissionless agent creation is disabled on mainnet (the chosen
+  security/product tradeoff vs the no-TEE rug vector).
