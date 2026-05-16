@@ -2,12 +2,15 @@ import "./env.ts";
 import { test, expect } from "bun:test";
 import { pinJson, pinText, fetchText, isValidHash } from "../src/storage/og-storage-impl.js";
 
-test("isValidHash only accepts 0x + 64 lowercase hex", () => {
-  expect(isValidHash("0x" + "a".repeat(64))).toBe(true);
-  expect(isValidHash("0x" + "A".repeat(64))).toBe(false);
+test("isValidHash accepts 0x + 40..128 lowercase hex (0G root hashes vary in length)", () => {
+  expect(isValidHash("0x" + "a".repeat(64))).toBe(true);   // keccak local hash
+  expect(isValidHash("0x" + "a".repeat(40))).toBe(true);   // lower bound
+  expect(isValidHash("0x" + "a".repeat(128))).toBe(true);  // upper bound
+  expect(isValidHash("0x" + "A".repeat(64))).toBe(false);  // uppercase rejected
   expect(isValidHash("notahash")).toBe(false);
-  expect(isValidHash("../../../etc/passwd")).toBe(false);
-  expect(isValidHash("0x" + "a".repeat(63))).toBe(false);
+  expect(isValidHash("../../../etc/passwd")).toBe(false);   // traversal rejected
+  expect(isValidHash("0x" + "a".repeat(39))).toBe(false);  // below min
+  expect(isValidHash("0x" + "a".repeat(129))).toBe(false); // above max
 });
 
 test("pinJson is deterministic and roundtrips", async () => {
