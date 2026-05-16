@@ -1,8 +1,15 @@
 'use client'
 import { useState } from 'react'
-import { useAccount, useWriteContract, usePublicClient, useChainId, useSwitchChain } from 'wagmi'
-import { formatUnits } from 'viem'
+import { useAccount, useWriteContract, useChainId, useSwitchChain } from 'wagmi'
+import { useQueryClient } from '@tanstack/react-query'
+import { formatUnits, http, createPublicClient } from 'viem'
 import { erc20Abi } from '@/lib/abis'
+import { zgGalileo } from '@/components/providers/Web3Provider'
+
+const zgClient = createPublicClient({
+  chain: { ...zgGalileo, id: zgGalileo.id } as never,
+  transport: http('https://evmrpc-testnet.0g.ai'),
+})
 
 const OPERATOR_URL = process.env.NEXT_PUBLIC_OPERATOR_URL ?? 'http://127.0.0.1:8402'
 
@@ -17,10 +24,10 @@ type Props = { tokenId: number; ticker: string }
 
 export function InferenceBox({ tokenId, ticker }: Props) {
   const { address } = useAccount()
-  const client = usePublicClient()
   const { writeContractAsync } = useWriteContract()
   const chainId = useChainId()
   const { switchChainAsync } = useSwitchChain()
+  const queryClient = useQueryClient()
 
   const [prompt, setPrompt] = useState('')
   const [output, setOutput] = useState('')
@@ -31,7 +38,6 @@ export function InferenceBox({ tokenId, ticker }: Props) {
   const run = async () => {
     if (!prompt.trim()) return
     if (!address) { setError('Connect wallet to run inference'); return }
-    if (!client) { setError('No RPC client available'); return }
 
     setLoading(true)
     setError('')
@@ -73,7 +79,7 @@ export function InferenceBox({ tokenId, ticker }: Props) {
 
       // 2. Check USDC balance
       setStatus('Checking USDC balance…')
-      const balance = await client.readContract({
+      const balance = await zgClient.readContract({
         address: asset,
         abi: erc20Abi,
         functionName: 'balanceOf',
@@ -97,9 +103,17 @@ export function InferenceBox({ tokenId, ticker }: Props) {
         chainId: challenge.chainId,
       })
 
-      // 4. Wait for on-chain confirmation
+      // 4. Wait for on-chain confirmation (manual poll — 0G RPC may error instead of returning null)
       setStatus('Confirming on chain…')
-      await client.waitForTransactionReceipt({ hash: txHash })
+      let confirmed = false
+      for (let i = 0; i < 30; i++) {
+        await new Promise(r => setTimeout(r, 3000))
+        try {
+          const rec = await zgClient.getTransactionReceipt({ hash: txHash })
+          if (rec) { confirmed = true; break }
+        } catch { /* retry */ }
+      }
+      if (!confirmed) { setError('Transaction confirmation timed out — try again'); return }
 
       // 5. Submit with payment proof
       setStatus('Submitting inference…')
@@ -119,8 +133,9 @@ export function InferenceBox({ tokenId, ticker }: Props) {
 
       // 6. Poll for result (max 2 minutes). pollToken is a bearer secret
       //    returned only to us — required so a known callId can't leak our output.
-      setStatus('Running inference…')
+      const thinkingMsgs = ['Stewing…', 'Synthesizing…', 'Thinking…', 'Pondering…', 'Brewing…']
       for (let i = 0; i < 60; i++) {
+        setStatus(thinkingMsgs[i % thinkingMsgs.length])
         await new Promise(r => setTimeout(r, 2000))
         const pr = await fetch(`${OPERATOR_URL}/x402/calls/${callId}?t=${encodeURIComponent(pollToken)}`)
         const pd = await pr.json() as {
@@ -132,6 +147,7 @@ export function InferenceBox({ tokenId, ticker }: Props) {
           const raw = (pd.result?.response ?? '').trimEnd()
           const endsClean = /[.!?)\]"'`]$/.test(raw)
           setOutput(endsClean ? raw : raw + ' …')
+          void queryClient.invalidateQueries({ queryKey: ['callsToday', tokenId] })
           return
         }
         if (pd.status === 'error') {

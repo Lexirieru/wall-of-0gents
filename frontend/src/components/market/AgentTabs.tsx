@@ -4,7 +4,7 @@ import { useAccount, useWriteContract, useChainId, useSwitchChain, useConnect } 
 import { injected } from 'wagmi/connectors'
 import { parseUnits, http, createPublicClient } from 'viem'
 import { gsap } from 'gsap'
-import { CONTRACTS, wallIPOPushAbi, wallMarketAbi, erc20Abi } from '@/lib/abis'
+import { CONTRACTS, wallIPOPushAbi, erc20Abi } from '@/lib/abis'
 import { zgGalileo } from '@/components/providers/Web3Provider'
 import { shortAddr, relativeTime } from '@/lib/format'
 import { InferenceBox } from './InferenceBox'
@@ -18,8 +18,8 @@ const zgClient = createPublicClient({
 
 interface IpoStats { available: bigint; pricePerShare: bigint; maxShares: bigint; isOpen: boolean }
 interface Inference { id: string; timestamp: number; subscriber: string; prompt: string }
-type Tab = 'call' | 'buy' | 'bid'
-const TAB_ORDER: Tab[] = ['call', 'buy', 'bid']
+type Tab = 'call' | 'buy'
+const TAB_ORDER: Tab[] = ['call', 'buy']
 
 interface Props {
   ticker: string
@@ -130,7 +130,6 @@ export function AgentTabs({ ticker, tokenId, hasIpo, isRegistered, ipoAddress, i
   const switchTab = (newTab: Tab) => {
     if (newTab === tab) return
     if (newTab === 'buy' && (!isRegistered || !hasIpo)) return
-    if (newTab === 'bid' && !isRegistered) return
     pendingTab.current = newTab
     gsap.to(contentRef.current, {
       opacity: 0,
@@ -168,13 +167,6 @@ export function AgentTabs({ ticker, tokenId, hasIpo, isRegistered, ipoAddress, i
           disabled={!isRegistered || !hasIpo}
           badge={hasIpo ? 'IPO OPEN' : 'NO IPO'}
           onClick={() => switchTab('buy')}
-        />
-        <TabBtn
-          ref={el => { tabRefs.current[2] = el }}
-          label="BID NFT"
-          active={tab === 'bid'}
-          disabled={!isRegistered}
-          onClick={() => switchTab('bid')}
         />
       </div>
 
@@ -222,9 +214,6 @@ export function AgentTabs({ ticker, tokenId, hasIpo, isRegistered, ipoAddress, i
           <BuyTab ipoAddress={ipoAddress} ticker={ticker} />
         )}
 
-        {tab === 'bid' && isRegistered && (
-          <BidTab tokenId={tokenId} ticker={ticker} />
-        )}
       </div>
     </div>
   )
@@ -394,138 +383,3 @@ function BuyTab({ ipoAddress, ticker }: { ipoAddress: Hex; ticker: string }) {
   )
 }
 
-// ─── Bid Tab ─────────────────────────────────────────────────────────────────
-function BidTab({ tokenId, ticker }: { tokenId: number; ticker: string }) {
-  const { address, isConnected } = useAccount()
-  const { connect } = useConnect()
-  const chainId = useChainId()
-  const { switchChainAsync } = useSwitchChain()
-  const { writeContractAsync } = useWriteContract()
-
-  const [bidUsd, setBidUsd] = useState('10')
-  const [busy, setBusy] = useState(false)
-  const [log, setLog] = useState('')
-  const [err, setErr] = useState('')
-  const onZg = chainId === ZG_ID
-
-  const handleBid = async () => {
-    if (!address) return
-    setBusy(true); setLog(''); setErr('')
-    try {
-      if (!onZg) { setLog('switching to 0G Galileo...'); await switchChainAsync({ chainId: ZG_ID }) }
-      const price = parseUnits(bidUsd, 6)
-      const expiresAt = BigInt(Math.floor(Date.now() / 1000) + 86400)
-      setLog('1/2 approving USDC...')
-      const approveTx = await writeContractAsync({
-        address: CONTRACTS.mockUsdc, abi: erc20Abi, functionName: 'approve',
-        args: [CONTRACTS.market, price], chainId: ZG_ID,
-      })
-      let rec1 = null
-      for (let i = 0; i < 20; i++) {
-        await new Promise(r => setTimeout(r, 3000))
-        try { rec1 = await zgClient.getTransactionReceipt({ hash: approveTx }); if (rec1) break } catch {}
-      }
-      if (!rec1) throw new Error('approve timed out')
-      setLog('2/2 placing bid...')
-      const bidTx = await writeContractAsync({
-        address: CONTRACTS.market, abi: wallMarketAbi, functionName: 'postBid',
-        args: [BigInt(tokenId), price, address, expiresAt], chainId: ZG_ID,
-      })
-      let rec2 = null
-      for (let i = 0; i < 20; i++) {
-        await new Promise(r => setTimeout(r, 3000))
-        try { rec2 = await zgClient.getTransactionReceipt({ hash: bidTx }); if (rec2) break } catch {}
-      }
-      if (!rec2) throw new Error('bid tx timed out')
-      setLog(`✓ bid placed — $${bidUsd} USDC for ${ticker} NFT · expires in 24h`)
-    } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message.slice(0, 200) : String(e))
-    } finally { setBusy(false) }
-  }
-
-  return (
-    <div>
-      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--mute)', lineHeight: 1.7, marginBottom: 24, maxWidth: 480 }}>
-        Place a buy offer on the {ticker} NFT. The owner can accept anytime before the bid expires.
-        Funds are locked in escrow until accepted or cancelled.
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1, background: 'var(--hair)', marginBottom: 24 }}>
-        <div className="stat">
-          <div className="label">ASSET</div>
-          <div className="value">{ticker} NFT</div>
-          <div className="delta">ERC-7857 agent token</div>
-        </div>
-        <div className="stat">
-          <div className="label">BID EXPIRY</div>
-          <div className="value">24h</div>
-          <div className="delta">after submission</div>
-        </div>
-      </div>
-
-      {!isConnected ? (
-        <button
-          className="btn primary"
-          onClick={() => connect({ connector: injected() })}
-          style={{ width: '100%', cursor: 'pointer', padding: '12px 0', fontSize: 13 }}
-        >
-          Connect Wallet to Bid
-        </button>
-      ) : (
-        <>
-          <div style={{ marginBottom: 12 }}>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', marginBottom: 6, letterSpacing: '0.08em' }}>
-              BID AMOUNT
-            </div>
-            <div style={{ display: 'flex', border: '1px solid var(--hair)', background: '#080808' }}>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 18, color: 'var(--accent)', padding: '14px 16px', alignSelf: 'center' }}>$</span>
-              <input
-                value={bidUsd}
-                onChange={e => setBidUsd(e.target.value.replace(/[^0-9.]/g, ''))}
-                style={{
-                  flex: 1, background: 'transparent', border: 'none', outline: 'none',
-                  fontFamily: 'var(--font-mono)', fontSize: 22, color: 'var(--fg)', padding: '14px 0',
-                }}
-                placeholder="0.00"
-              />
-              <span style={{
-                fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--mute)',
-                padding: '14px 16px', borderLeft: '1px solid var(--hair)', alignSelf: 'center',
-              }}>
-                USDC
-              </span>
-            </div>
-          </div>
-
-          <div style={{
-            fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--mute)',
-            marginBottom: 16, padding: '10px 14px', background: 'var(--panel)',
-            border: '1px solid var(--hair)',
-          }}>
-            mockUSDC on 0G Galileo · bid expires in 24 hours
-          </div>
-
-          <button
-            className="btn primary"
-            onClick={handleBid}
-            disabled={busy || !bidUsd || Number(bidUsd) <= 0}
-            style={{ width: '100%', cursor: busy ? 'not-allowed' : 'pointer', padding: '13px 0', fontSize: 13 }}
-          >
-            {busy ? '● processing...' : `▸ PLACE BID — $${bidUsd || '0'} USDC`}
-          </button>
-        </>
-      )}
-
-      {log && (
-        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: log.startsWith('✓') ? '#22c55e' : 'var(--mute)', marginTop: 14 }}>
-          {log}
-        </div>
-      )}
-      {err && (
-        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: '#ef4444', marginTop: 14 }}>
-          {err}
-        </div>
-      )}
-    </div>
-  )
-}

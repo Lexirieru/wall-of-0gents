@@ -1,9 +1,10 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useAccount, useWriteContract, useChainId, useSwitchChain, useConnect } from 'wagmi'
+import { useQueryClient } from '@tanstack/react-query'
 import { injected } from 'wagmi/connectors'
 import { parseUnits, http, createPublicClient } from 'viem'
-import { CONTRACTS, wallIPOPushAbi, wallMarketAbi, erc20Abi } from '@/lib/abis'
+import { CONTRACTS, wallIPOPushAbi, erc20Abi } from '@/lib/abis'
 import { zgGalileo } from '@/components/providers/Web3Provider'
 import type { Hex } from 'viem'
 
@@ -14,19 +15,18 @@ const zgClient = createPublicClient({
 })
 
 interface IpoStats { available: bigint; pricePerShare: bigint; maxShares: bigint; isOpen: boolean }
-type Panel = 'buy' | 'bid' | null
+type Panel = 'buy' | null
 
 interface Props {
   ipoAddress?: Hex
   ticker: string
-  tokenId: number
   hasIpo: boolean
   isRegistered: boolean
 }
 
-export function AgentActions({ ipoAddress, ticker, tokenId, hasIpo, isRegistered }: Props) {
+export function AgentActions({ ipoAddress, ticker, hasIpo, isRegistered }: Props) {
   const [active, setActive] = useState<Panel>(null)
-  const toggle = (p: 'buy' | 'bid') => setActive(prev => prev === p ? null : p)
+  const toggle = (p: 'buy') => setActive(prev => prev === p ? null : p)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10 }}>
@@ -45,22 +45,11 @@ export function AgentActions({ ipoAddress, ticker, tokenId, hasIpo, isRegistered
             Buy Shares
           </button>
         )}
-        <button
-          className={active === 'bid' ? 'btn primary' : 'btn'}
-          onClick={() => isRegistered && toggle('bid')}
-          disabled={!isRegistered}
-          style={{ cursor: isRegistered ? 'pointer' : 'not-allowed', opacity: isRegistered ? 1 : 0.4 }}
-        >
-          {active === 'bid' ? '✕ close' : 'Bid NFT'}
-        </button>
       </div>
 
       {/* Panel */}
       {active === 'buy' && hasIpo && ipoAddress && (
         <BuyPanel ipoAddress={ipoAddress} ticker={ticker} />
-      )}
-      {active === 'bid' && (
-        <BidPanel tokenId={tokenId} ticker={ticker} />
       )}
     </div>
   )
@@ -73,6 +62,7 @@ function BuyPanel({ ipoAddress, ticker }: { ipoAddress: Hex; ticker: string }) {
   const chainId = useChainId()
   const { switchChainAsync } = useSwitchChain()
   const { writeContractAsync } = useWriteContract()
+  const queryClient = useQueryClient()
 
   const [shares, setShares] = useState('100')
   const [busy, setBusy] = useState(false)
@@ -133,6 +123,7 @@ function BuyPanel({ ipoAddress, ticker }: { ipoAddress: Hex; ticker: string }) {
       setLog(`✓ bought ${shares} ${ticker} shares for $${costUsd} USDC`)
       const available = await zgClient.readContract({ address: ipoAddress, abi: wallIPOPushAbi, functionName: 'available' }) as bigint
       setStats(s => s ? { ...s, available } : s)
+      void queryClient.invalidateQueries({ queryKey: ['ipoSold', ipoAddress] })
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message.slice(0, 200) : String(e))
     } finally { setBusy(false) }
@@ -198,114 +189,6 @@ function BuyPanel({ ipoAddress, ticker }: { ipoAddress: Hex; ticker: string }) {
               style={{ width: '100%', cursor: (busy || !stats?.isOpen) ? 'not-allowed' : 'pointer' }}
             >
               {busy ? '● processing...' : `▸ BUY ${shares || '0'} SHARES`}
-            </button>
-          </>
-        )}
-
-        {log && (
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: log.startsWith('✓') ? '#22c55e' : 'var(--mute)', marginTop: 10 }}>
-            {log}
-          </div>
-        )}
-        {err && (
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#ef4444', marginTop: 10 }}>
-            {err}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// ─── Bid Panel ───────────────────────────────────────────────────────────────
-function BidPanel({ tokenId, ticker }: { tokenId: number; ticker: string }) {
-  const { address, isConnected } = useAccount()
-  const { connect } = useConnect()
-  const chainId = useChainId()
-  const { switchChainAsync } = useSwitchChain()
-  const { writeContractAsync } = useWriteContract()
-
-  const [bidUsd, setBidUsd] = useState('10')
-  const [busy, setBusy] = useState(false)
-  const [log, setLog] = useState('')
-  const [err, setErr] = useState('')
-  const onZg = chainId === ZG_ID
-
-  const handleBid = async () => {
-    if (!address) return
-    setBusy(true); setLog(''); setErr('')
-    try {
-      if (!onZg) { setLog('switching to 0G Galileo...'); await switchChainAsync({ chainId: ZG_ID }) }
-      const price = parseUnits(bidUsd, 6)
-      const expiresAt = BigInt(Math.floor(Date.now() / 1000) + 86400)
-      setLog('1/2 approving USDC...')
-      const approveTx = await writeContractAsync({
-        address: CONTRACTS.mockUsdc, abi: erc20Abi, functionName: 'approve',
-        args: [CONTRACTS.market, price], chainId: ZG_ID,
-      })
-      let rec1 = null
-      for (let i = 0; i < 20; i++) {
-        await new Promise(r => setTimeout(r, 3000))
-        try { rec1 = await zgClient.getTransactionReceipt({ hash: approveTx }); if (rec1) break } catch {}
-      }
-      if (!rec1) throw new Error('approve timed out')
-      setLog('2/2 placing bid...')
-      const bidTx = await writeContractAsync({
-        address: CONTRACTS.market, abi: wallMarketAbi, functionName: 'postBid',
-        args: [BigInt(tokenId), price, '0x', expiresAt], chainId: ZG_ID,
-      })
-      let rec2 = null
-      for (let i = 0; i < 20; i++) {
-        await new Promise(r => setTimeout(r, 3000))
-        try { rec2 = await zgClient.getTransactionReceipt({ hash: bidTx }); if (rec2) break } catch {}
-      }
-      if (!rec2) throw new Error('bid tx timed out')
-      setLog(`✓ bid placed — $${bidUsd} USDC for ${ticker} NFT · expires in 24h`)
-    } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message.slice(0, 200) : String(e))
-    } finally { setBusy(false) }
-  }
-
-  return (
-    <div style={{ width: 340, background: 'var(--panel)', border: '1px solid var(--hair)' }}>
-      <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--hair)' }}>
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', letterSpacing: '0.08em' }}>
-          BID ON {ticker} NFT
-        </span>
-      </div>
-
-      <div style={{ padding: 14 }}>
-        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', marginBottom: 10, lineHeight: 1.6 }}>
-          Place a buy offer on the NFT itself. The owner can accept anytime before expiry.
-        </div>
-
-        {!isConnected ? (
-          <button className="btn primary" onClick={() => connect({ connector: injected() })} style={{ width: '100%', cursor: 'pointer' }}>
-            Connect Wallet
-          </button>
-        ) : (
-          <>
-            <div style={{ display: 'flex', border: '1px solid var(--hair)', background: '#080808', marginBottom: 8 }}>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--accent)', padding: '10px 12px' }}>$</span>
-              <input
-                value={bidUsd}
-                onChange={e => setBidUsd(e.target.value.replace(/[^0-9.]/g, ''))}
-                style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'var(--font-mono)', fontSize: 14, color: 'var(--fg)', padding: '10px 0' }}
-              />
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', padding: '10px 12px', borderLeft: '1px solid var(--hair)' }}>USDC</span>
-            </div>
-
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--mute)', marginBottom: 12 }}>
-              mockUSDC on 0G Galileo · 24h expiry
-            </div>
-
-            <button
-              className="btn primary"
-              onClick={handleBid}
-              disabled={busy || !bidUsd}
-              style={{ width: '100%', cursor: busy ? 'not-allowed' : 'pointer' }}
-            >
-              {busy ? '● processing...' : `▸ PLACE BID`}
             </button>
           </>
         )}

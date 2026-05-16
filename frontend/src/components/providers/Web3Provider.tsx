@@ -1,6 +1,6 @@
 'use client'
 
-import { createConfig, WagmiProvider, http } from 'wagmi'
+import { createConfig, WagmiProvider, http, createStorage } from 'wagmi'
 import { injected } from 'wagmi/connectors'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ReactNode, useState } from 'react'
@@ -14,19 +14,19 @@ export const zgGalileo = {
   testnet: true,
 } as const
 
-const wagmiConfig = createConfig({
-  chains: [zgGalileo],
-  transports: {
-    [zgGalileo.id]: http('https://evmrpc-testnet.0g.ai'),
-  },
-  connectors: [injected()],
-  ssr: true,
-})
-
 export function Web3Provider({ children }: { children: ReactNode }) {
+  const [wagmiConfig] = useState(() => createConfig({
+    chains: [zgGalileo],
+    transports: {
+      [zgGalileo.id]: http('https://evmrpc-testnet.0g.ai'),
+    },
+    connectors: [injected()],
+    ssr: true,
+    storage: createStorage({ storage: typeof window !== 'undefined' ? window.localStorage : undefined }),
+  }))
   const [queryClient] = useState(() => new QueryClient())
   return (
-    <WagmiProvider config={wagmiConfig}>
+    <WagmiProvider config={wagmiConfig} reconnectOnMount>
       <QueryClientProvider client={queryClient}>
         {children}
       </QueryClientProvider>
