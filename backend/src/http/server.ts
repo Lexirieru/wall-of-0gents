@@ -13,7 +13,7 @@ import {
 } from "../chain/clients.js";
 import { getRuntimeFor } from "../runtime/index.js";
 import { priceFor } from "../runtime/pricing.js";
-import { queryReceipts, getReceipt } from "../store/receipts.js";
+import { queryReceipts, getReceipt, countCallsToday } from "../store/receipts.js";
 import { dynamicRegistry, type AgentEntry } from "../store/dynamic-registry.js";
 import { consumePayment, PaymentReplayError } from "../store/payments.js";
 import { consumeRegisterSig, RegisterReplayError } from "../store/register-sigs.js";
@@ -539,6 +539,13 @@ export function createServer() {
           res = rateLimited(ip, "register")
             ? err("rate limit exceeded", 429)
             : await handleRegister(req);
+        } else if (req.method === "GET" && path === "/stats") {
+          const tokenId = url.searchParams.get("tokenId") ?? "";
+          if (!tokenId || !/^\d+$/.test(tokenId)) {
+            res = err("invalid or missing tokenId");
+          } else {
+            res = json({ callsToday: countCallsToday(tokenId) });
+          }
         } else if (req.method === "GET" && path === "/receipts") {
           res = await handleReceipts(url);
         } else if (req.method === "POST" && path === "/og-storage/pin") {

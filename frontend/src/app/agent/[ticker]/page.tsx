@@ -1,8 +1,10 @@
 import Link from 'next/link'
-import { loadInferences, readVault, readNftOwner, readFactoryLaunch, readIpoInfo, getBackendAgent } from '@/lib/agents'
+import { loadInferences, readVault, readNftOwner, readFactoryLaunch, getBackendAgent } from '@/lib/agents'
 import { shortAddr } from '@/lib/format'
 import { AgentTabs } from '@/components/market/AgentTabs'
 import { CallsToday } from '@/components/market/CallsToday'
+import { VaultBalance } from '@/components/market/VaultBalance'
+import { IpoSold } from '@/components/market/IpoSold'
 import type { Hex } from 'viem'
 
 export const revalidate = 30
@@ -48,21 +50,12 @@ export default async function AgentPage({ params }: { params: Promise<{ ticker: 
     readFactoryLaunch(agent.tokenId).catch(() => null),
   ])
 
+  const vaultAddress = (factoryLaunch?.vault && factoryLaunch.vault !== '0x0000000000000000000000000000000000000000')
+    ? factoryLaunch.vault as `0x${string}`
+    : null
+
   const hasIpo = !!factoryLaunch?.ipo && factoryLaunch.ipo !== '0x0000000000000000000000000000000000000000'
 
-  // Read IPO sold count — source of truth for public sales (pre-minted totalSupply is always 1M)
-  let ipoSold = '—'
-  if (hasIpo) {
-    const ipoInfo = await readIpoInfo(factoryLaunch!.ipo).catch(() => null)
-    if (ipoInfo) {
-      const sold = Number(ipoInfo.sold / 10n ** 18n).toLocaleString()
-      const max = Number(ipoInfo.maxShares / 10n ** 18n).toLocaleString()
-      const pct = ipoInfo.maxShares > 0n
-        ? (Number(ipoInfo.sold) / Number(ipoInfo.maxShares) * 100).toFixed(2)
-        : '0.00'
-      ipoSold = `${sold} / ${max} (${pct}%)`
-    }
-  }
   const activeShareToken = (factoryLaunch?.shareToken ?? vault?.shareToken) as Hex | undefined
   const isRegistered = !!(vault?.active || factoryLaunch)
   const resolvedOwner = nftOwner ?? agent.owner
@@ -90,16 +83,26 @@ export default async function AgentPage({ params }: { params: Promise<{ ticker: 
 
       {/* Stats strip */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 1, background: 'var(--hair)', margin: '24px 0' }}>
-        <div className="stat">
-          <div className="label">IPO Sold</div>
-          <div className="value">{ipoSold}</div>
-          <div className="delta">public IPO allocation</div>
-        </div>
-        <div className="stat">
-          <div className="label">Vault Balance</div>
-          <div className="value">—</div>
-          <div className="delta">pending 0G Vault</div>
-        </div>
+        {hasIpo
+          ? <IpoSold ipoAddress={factoryLaunch!.ipo as `0x${string}`} />
+          : (
+            <div className="stat">
+              <div className="label">IPO Sold</div>
+              <div className="value">—</div>
+              <div className="delta">public IPO allocation</div>
+            </div>
+          )
+        }
+        {vaultAddress
+          ? <VaultBalance vaultAddress={vaultAddress} />
+          : (
+            <div className="stat">
+              <div className="label">Vault Balance</div>
+              <div className="value">—</div>
+              <div className="delta">no vault yet</div>
+            </div>
+          )
+        }
         <CallsToday tokenId={agent.tokenId} />
         <div className="stat">
           <div className="label">Status</div>

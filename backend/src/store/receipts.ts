@@ -23,6 +23,14 @@ export function queryReceipts(tokenId?: string, subscriber?: string, limit = 50)
   return rows.map((r) => JSON.parse(r.receipt));
 }
 
+export function countCallsToday(tokenId: string): number {
+  const cutoff = Math.floor(Date.now() / 1000) - 86400
+  const row = getDb()
+    .query("SELECT COUNT(*) as n FROM receipts WHERE tokenId=? AND ts > ?")
+    .get(tokenId, cutoff) as { n: number } | null
+  return row?.n ?? 0
+}
+
 export function getReceipt(callId: string): StoredReceipt | null {
   const row = getDb()
     .query("SELECT receipt, response FROM receipts WHERE callId=?")

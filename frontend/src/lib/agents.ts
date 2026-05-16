@@ -184,6 +184,20 @@ export async function readVault(tokenId: number): Promise<VaultInfo | null> {
   }
 }
 
+export async function readVaultBalance(vaultAddress: Hex): Promise<bigint> {
+  try {
+    const bal = await zgPublicClient.readContract({
+      address: CONTRACTS.mockUsdc,
+      abi: erc20Abi,
+      functionName: 'balanceOf',
+      args: [vaultAddress],
+    })
+    return bal as bigint
+  } catch {
+    return 0n
+  }
+}
+
 export async function readShareBalance(shareToken: Hex, account: Hex): Promise<bigint> {
   try {
     const bal = await zgPublicClient.readContract({
