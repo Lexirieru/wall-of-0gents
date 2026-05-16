@@ -219,8 +219,9 @@ wall-of-0gents/
 | Backend API | https://wall-of-0gents-production.up.railway.app |
 | GitHub | https://github.com/Lexirieru/wall-of-0gents |
 | X / Twitter | https://x.com/wallof0gent |
+| Pitch Deck | https://canva.link/r5jgc7o8rqeymnk |
 
 ---
 
 **License:** MIT — free, open source.  
-**Contact:** hello@wall-of-0gents.xyz
+**Contact:** axelmatsama@gmail.com
