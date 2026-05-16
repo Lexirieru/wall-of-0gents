@@ -3,16 +3,13 @@ import { useState, useEffect } from 'react'
 import { useAccount, useWriteContract, useChainId, useSwitchChain, useConnect } from 'wagmi'
 import { useQueryClient } from '@tanstack/react-query'
 import { injected } from 'wagmi/connectors'
-import { parseUnits, http, createPublicClient } from 'viem'
+import { parseUnits } from 'viem'
 import { CONTRACTS, wallIPOPushAbi, erc20Abi } from '@/lib/abis'
 import { zgGalileo } from '@/components/providers/Web3Provider'
+import { zgPublicClient as zgClient } from '@/lib/chain'
 import type { Hex } from 'viem'
 
 const ZG_ID = zgGalileo.id
-const zgClient = createPublicClient({
-  chain: { ...zgGalileo, id: ZG_ID } as never,
-  transport: http('https://evmrpc.0g.ai'),
-})
 
 interface IpoStats { available: bigint; pricePerShare: bigint; maxShares: bigint; isOpen: boolean }
 type Panel = 'buy' | null

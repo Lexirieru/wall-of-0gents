@@ -1,13 +1,7 @@
 'use client'
 import { useQuery } from '@tanstack/react-query'
-import { http, createPublicClient } from 'viem'
-import { zgGalileo } from '@/components/providers/Web3Provider'
+import { zgPublicClient as zgClient } from '@/lib/chain'
 import { wallIPOPushAbi } from '@/lib/abis'
-
-const zgClient = createPublicClient({
-  chain: { ...zgGalileo, id: zgGalileo.id } as never,
-  transport: http('https://evmrpc.0g.ai'),
-})
 
 async function fetchIpoSold(ipoAddress: `0x${string}`): Promise<{ sold: bigint; maxShares: bigint }> {
   const [sold, maxShares] = await Promise.all([

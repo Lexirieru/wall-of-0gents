@@ -1,16 +1,12 @@
 'use client'
 import { useState } from 'react'
 import { useAccount, useWriteContract, useChainId, useSwitchChain } from 'wagmi'
-import { parseUnits, http, createPublicClient } from 'viem'
+import { parseUnits } from 'viem'
 import { CONTRACTS, wallMarketAbi, erc20Abi } from '@/lib/abis'
 import { zgGalileo } from '@/components/providers/Web3Provider'
+import { zgPublicClient as zgClient } from '@/lib/chain'
 
 const ZG_ID = zgGalileo.id
-
-const zgClient = createPublicClient({
-  chain: { ...zgGalileo, id: ZG_ID } as never,
-  transport: http('https://evmrpc.0g.ai'),
-})
 
 type Props = { tokenId: number; ticker: string }
 

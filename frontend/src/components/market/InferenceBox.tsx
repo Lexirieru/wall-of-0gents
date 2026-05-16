@@ -2,14 +2,9 @@
 import { useState } from 'react'
 import { useAccount, useWriteContract, useChainId, useSwitchChain } from 'wagmi'
 import { useQueryClient } from '@tanstack/react-query'
-import { formatUnits, http, createPublicClient } from 'viem'
+import { formatUnits } from 'viem'
 import { erc20Abi } from '@/lib/abis'
-import { zgGalileo } from '@/components/providers/Web3Provider'
-
-const zgClient = createPublicClient({
-  chain: { ...zgGalileo, id: zgGalileo.id } as never,
-  transport: http('https://evmrpc.0g.ai'),
-})
+import { zgPublicClient as zgClient } from '@/lib/chain'
 
 const OPERATOR_URL = process.env.NEXT_PUBLIC_OPERATOR_URL ?? 'http://127.0.0.1:8402'
 

@@ -2,19 +2,16 @@
 import { useState, useEffect, useLayoutEffect, useRef, forwardRef } from 'react'
 import { useAccount, useWriteContract, useChainId, useSwitchChain, useConnect } from 'wagmi'
 import { injected } from 'wagmi/connectors'
-import { parseUnits, http, createPublicClient } from 'viem'
+import { parseUnits } from 'viem'
 import { gsap } from 'gsap'
 import { CONTRACTS, wallIPOPushAbi, erc20Abi } from '@/lib/abis'
 import { zgGalileo } from '@/components/providers/Web3Provider'
+import { zgPublicClient as zgClient } from '@/lib/chain'
 import { shortAddr, relativeTime } from '@/lib/format'
 import { InferenceBox } from './InferenceBox'
 import type { Hex } from 'viem'
 
 const ZG_ID = zgGalileo.id
-const zgClient = createPublicClient({
-  chain: { ...zgGalileo, id: ZG_ID } as never,
-  transport: http('https://evmrpc.0g.ai'),
-})
 
 interface IpoStats { available: bigint; pricePerShare: bigint; maxShares: bigint; isOpen: boolean }
 interface Inference { id: string; timestamp: number; subscriber: string; prompt: string }

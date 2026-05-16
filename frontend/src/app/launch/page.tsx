@@ -4,19 +4,15 @@ import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import gsap from 'gsap'
 import { useAccount, useChainId, useConnect, useWriteContract, useSwitchChain, useSignMessage } from 'wagmi'
 import { injected } from 'wagmi/connectors'
-import { keccak256, toHex, decodeEventLog, encodeAbiParameters, http, createPublicClient } from 'viem'
+import { keccak256, toHex, decodeEventLog, encodeAbiParameters } from 'viem'
 import { zgGalileo } from '@/components/providers/Web3Provider'
+import { zgPublicClient as zgClient } from '@/lib/chain'
 import { CONTRACTS, wallAgentNftAbi, wallLaunchFactoryAbi } from '@/lib/abis'
 import { registerAgentInBackend, buildRegisterMessage, type RegisterEntry } from '@/lib/agents'
 
 const AGENT_NFT = CONTRACTS.agentNft
 const FACTORY   = CONTRACTS.factory
 const ZG_ID = zgGalileo.id
-
-const zgClient = createPublicClient({
-  chain: { ...zgGalileo, id: ZG_ID } as never,
-  transport: http('https://evmrpc.0g.ai'),
-})
 
 // ─── Skill interface ────────────────────────────────────────────────────────
 interface Skill {
