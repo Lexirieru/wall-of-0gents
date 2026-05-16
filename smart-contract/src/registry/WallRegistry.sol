@@ -68,6 +68,19 @@ contract WallRegistry is OwnableUpgradeable, UUPSUpgradeable {
         _register(tokenId, shareToken, vaultBase, ensNameHash, msg.sender);
     }
 
+    /// @notice One-time admin escape-hatch for agents fractionalized via the old
+    ///         WallFractionalizer path (iNFT locked there, ownerOf-gated register
+    ///         unreachable). onlyOwner; still respects AlreadyRegistered guard.
+    function adminRegister(
+        uint256 tokenId,
+        address shareToken,
+        address vaultBase,
+        bytes32 ensNameHash,
+        address operator
+    ) external onlyOwner {
+        _register(tokenId, shareToken, vaultBase, ensNameHash, operator);
+    }
+
     /// @notice Register on behalf of `operator` (the original creator). Only the
     ///         trusted factory may call this — it holds the iNFT mid-launch so
     ///         the ownerOf-gated `register` is unreachable by the creator.
