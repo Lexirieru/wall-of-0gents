@@ -1,9 +1,16 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import type { ReactNode } from 'react'
 import { Masthead } from '@/components/market/Masthead'
 import { TickerTape } from '@/components/market/TickerTape'
 import { Providers } from '@/components/providers/Web3Provider'
 import './globals.css'
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: '#010101',
+}
 
 export const metadata: Metadata = {
   title: 'Wall of 0gents — AI Agent Exchange on 0G',
